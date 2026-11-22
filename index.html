@@ -47,7 +47,12 @@
     <button id="btn-open">Abrir imagem</button>
     <span id="status">nenhuma imagem</span>
     <div class="spacer"></div>
-    <button id="btn-export" disabled>Exportar PNG</button>
+    <button id="btn-export" disabled>PNG</button>
+    <button id="btn-export-jpg" disabled>JPEG</button>
+    <label class="ch">q<input type="range" id="sl-quality" min="50" max="100" value="85"></label>
+    <span class="sep"></span>
+    <button id="btn-undo" disabled>↩ desfazer</button>
+    <button id="btn-redo" disabled>↪ refazer</button>
   </header>
   <div id="tools" class="disabled">
     <button id="btn-flip-x" title="espelho horizontal">↔</button>

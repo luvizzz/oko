@@ -1,5 +1,6 @@
 import { type ImageBuf } from "./core/image";
 import { runPipeline, type Op } from "./core/pipeline";
+import { History } from "./core/history";
 import { CanvasView } from "./ui/canvas-view";
 import { downloadBlob, bufToBlob, loadImageFile } from "./ui/io";
 import { loadSession, saveSession, type Session } from "./ui/session";
@@ -25,13 +26,14 @@ const view = new CanvasView(canvas);
 
 let session: Session | null = null;
 let original: ImageBuf | null = null; // decodificada 1x; ops rodam sobre ela a cada render
+const history = new History(); // ops vivem no MESMO array da sessão (referência compartilhada)
 
 /** Op temporária dos sliders (preview ao vivo); só vira sessão no "aplicar". */
 let previewOp: Op | null = null;
 
 function displayBuf(): ImageBuf | null {
   if (!original || !session) return null;
-  return runPipeline(original, previewOp ? [...session.ops, previewOp] : session.ops);
+  return runPipeline(original, previewOp ? [...history.ops, previewOp] : history.ops);
 }
 
 function render(label?: string): void {
@@ -40,7 +42,9 @@ function render(label?: string): void {
   view.render(buf);
   inpW.value = String(buf.width);
   inpH.value = String(buf.height);
-  status.textContent = label ?? `${session.filename} — ${buf.width}×${buf.height} · ${session.ops.length} edição(ões)`;
+  status.textContent = label ?? `${session.filename} — ${buf.width}×${buf.height} · ${history.ops.length} edição(ões)`;
+  $<HTMLButtonElement>("btn-undo").disabled = !history.canUndo;
+  $<HTMLButtonElement>("btn-redo").disabled = !history.canRedo;
 }
 
 /** valida a op rodando o pipeline completo ANTES de persistir (sessão nunca guarda op quebrada) */
@@ -48,12 +52,12 @@ async function addOp(op: Op): Promise<void> {
   if (!original || !session) return;
   previewOp = null;
   try {
-    runPipeline(original, [...session.ops, op]);
+    runPipeline(original, [...history.ops, op]);
   } catch (err) {
     status.textContent = `erro: ${err instanceof Error ? err.message : err}`;
     return;
   }
-  session.ops.push(op);
+  history.push(op);
   await saveSession(session);
   render();
 }
@@ -61,6 +65,9 @@ async function addOp(op: Op): Promise<void> {
 function setToolsEnabled(on: boolean): void {
   tools.classList.toggle("disabled", !on);
   $<HTMLButtonElement>("btn-export").disabled = !on;
+  $<HTMLButtonElement>("btn-export-jpg").disabled = !on;
+  $<HTMLButtonElement>("btn-undo").disabled = !on;
+  $<HTMLButtonElement>("btn-redo").disabled = !on;
 }
 
 async function openImage(file: File): Promise<void> {
@@ -68,6 +75,7 @@ async function openImage(file: File): Promise<void> {
   try {
     original = await loadImageFile(file);
     session = { filename: file.name, savedAt: Date.now(), ops: [], image: file };
+    history.load(session.ops);
     setToolsEnabled(true);
     render(`${file.name} — carregada`);
     await saveSession(session);
@@ -91,6 +99,30 @@ $<HTMLButtonElement>("btn-export").addEventListener("click", async () => {
   downloadBlob(blob, "oko-export.png");
 });
 
+$<HTMLButtonElement>("btn-export-jpg").addEventListener("click", async () => {
+  const buf = displayBuf();
+  if (!buf) return;
+  const quality = Number($input("sl-quality").value) / 100;
+  const blob = await bufToBlob(buf, "image/jpeg", quality);
+  downloadBlob(blob, "oko-export.jpg");
+});
+
+// ---------- desfazer / refazer (M5) ----------
+$<HTMLButtonElement>("btn-undo").addEventListener("click", async () => {
+  const op = history.undo();
+  if (!op || !session) return;
+  previewOp = null;
+  await saveSession(session);
+  render(`desfeito: ${op.type}`);
+});
+$<HTMLButtonElement>("btn-redo").addEventListener("click", async () => {
+  const op = history.redo();
+  if (!op || !session) return;
+  previewOp = null;
+  await saveSession(session);
+  render(`refeito: ${op.type}`);
+});
+
 // ---------- toolbar M2 ----------
 $<HTMLButtonElement>("btn-flip-x").addEventListener("click", () => void addOp({ type: "flip", axis: "x" }));
 $<HTMLButtonElement>("btn-flip-y").addEventListener("click", () => void addOp({ type: "flip", axis: "y" }));
@@ -108,7 +140,7 @@ $<HTMLButtonElement>("btn-resize").addEventListener("click", () => {
 $<HTMLButtonElement>("btn-reset").addEventListener("click", async () => {
   if (!session) return;
   previewOp = null;
-  session.ops = [];
+  history.clear();
   await saveSession(session);
   exitCrop();
   render("edições descartadas");
@@ -362,6 +394,7 @@ loadSession()
   .then(async (saved) => {
     if (!saved) return;
     session = saved;
+    history.load(saved.ops);
     original = await loadImageFile(new File([saved.image], saved.filename));
     setToolsEnabled(true);
     render(`sessão restaurada — ${saved.filename}`);
