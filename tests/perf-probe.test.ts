@@ -41,7 +41,7 @@ describe("perf probe", () => {
     }
   });
 
-  it("cache de prefixo: slider frame = só a op do slider", () => {
+  it("prefix cache: slider frame = only the slider's op", () => {
     const img = makeImg(1600, 1000);
     const base: Op[] = [
       { type: "rotateZ", degrees: 30 },
@@ -50,18 +50,18 @@ describe("perf probe", () => {
       { type: "colorGain", r: 1.1, g: 0.9, b: 1.0 },
     ];
     const cache = new PipelineCache();
-    time("prime (pipeline cheia 4 ops)", () => cache.run(img, base));
+    time("prime (full pipeline 4 ops)", () => cache.run(img, base));
     for (const sigma of [1.0, 1.5, 2.0]) {
-      time(`slider frame com cache (blur sigma=${sigma})`, () =>
+      time(`slider frame with cache (blur sigma=${sigma})`, () =>
         cache.run(img, [...base, { type: "blur", sigma } as Op]),
       );
     }
   });
 
-  it("proxy 900px: preview de blur numa 1600x1000", () => {
+  it("900px proxy: blur preview on a 1600x1000", () => {
     const img = makeImg(1600, 1000);
     const f = 900 / 1600;
-    const proxy = lanczosResize(img, Math.round(1600 * f), Math.round(1000 * f)); // custo pago 1x por imagem
+    const proxy = lanczosResize(img, Math.round(1600 * f), Math.round(1000 * f)); // cost paid 1x per image
     const cache = new PipelineCache();
     const ops: Op[] = [{ type: "colorGain", r: 1.1, g: 0.9, b: 1.0 }];
     cache.run(proxy, ops);

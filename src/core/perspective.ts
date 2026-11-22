@@ -1,13 +1,14 @@
 /**
- * core/perspective.ts — D6: rotação "3D" via homografia 3×3.
- * O usuário escolhe onde os 4 cantos da imagem vão cair (um trapézio/quadro
- * qualquer); calculamos a transformação projetiva que leva o retângulo-origem
- * a esse quadrilátero e preenchemos o canvas novo com INVERSE MAPPING
- * (cada pixel de destino volta à origem e amostra com bilinear — a exceção
- * autorizada em D5) + extensão de borda (D da rotação: [-0.5, n-0.5]).
+ * core/perspective.ts — "3D" rotation via a 3x3 homography.
+ * The user chooses where the 4 corners of the image will land (any
+ * trapezoid/frame); we compute the projective transformation that maps the
+ * source rectangle to that quadrilateral and fill the new canvas with INVERSE
+ * MAPPING (each destination pixel maps back to the source and samples with
+ * bilinear — the authorized exception to the Lanczos-only rule) + edge
+ * extension (the rotation rule: [-0.5, n-0.5]).
  *
- * Convenção: coordenadas em "unidades de pixel" de extensão (0..w),
- * canto tl,tr,bl,br. Canvas de saída = bounding box justo do quadrilátero.
+ * Convention: coordinates in "pixel units" of extent (0..w),
+ * corners tl,tr,bl,br. Output canvas = tight bounding box of the quadrilateral.
  */
 import { alloc, trimTransparent, type ImageBuf } from "./image";
 
@@ -18,7 +19,7 @@ export interface Quad {
   br: readonly [number, number];
 }
 
-/** resolve A(8×8)·h = b por eliminação de Gauss; retorna h com h9=1 fixo */
+/** solves A(8x8)*h = b by Gaussian elimination; returns h with h9=1 fixed */
 function solveHomography(src: readonly (readonly [number, number])[], dst: readonly (readonly [number, number])[]): number[] | null {
   const A: number[][] = [];
   const b: number[] = [];
@@ -30,11 +31,11 @@ function solveHomography(src: readonly (readonly [number, number])[], dst: reado
     A.push([0, 0, 0, x, y, 1, -Y * x, -Y * y]);
     b.push(Y);
   }
-  // eliminação gaussiana com pivoteamento parcial
+  // gaussian elimination with partial pivoting
   for (let col = 0; col < 8; col++) {
     let piv = col;
     for (let r = col + 1; r < 8; r++) if (Math.abs(A[r]![col]!) > Math.abs(A[piv]![col]!)) piv = r;
-    if (Math.abs(A[piv]![col]!) < 1e-9) return null; // sistema degenerado
+    if (Math.abs(A[piv]![col]!) < 1e-9) return null; // degenerate system
     [A[col], A[piv]] = [A[piv]!, A[col]!];
     [b[col], b[piv]] = [b[piv]!, b[col]!];
     for (let r = 0; r < 8; r++) {
@@ -68,20 +69,20 @@ export function perspective(img: ImageBuf, quad: Quad): ImageBuf {
 
   const minX = Math.min(...q.map((c) => c[0]));
   const minY = Math.min(...q.map((c) => c[1]));
-  // H leva o retângulo ao quadrilátero em coords RELATIVAS AO BBOX —
-  // o inverse mapping amostra X=ox+0.5, Y=oy+0.5 (também relativas).
+  // H maps the rectangle to the quadrilateral in coords RELATIVE TO THE BBOX —
+  // the inverse mapping samples X=ox+0.5, Y=oy+0.5 (also relative).
   const qRel: (readonly [number, number])[] = q.map((c) => [c[0] - minX, c[1] - minY] as const);
   const maxX = Math.max(...qRel.map((c) => c[0]));
   const maxY = Math.max(...qRel.map((c) => c[1]));
   const nw = Math.max(1, Math.round(maxX));
   const nh = Math.max(1, Math.round(maxY));
-  if (nw * nh < 1) throw new RangeError("quadrilátero degenerado");
+  if (nw * nh < 1) throw new RangeError("degenerate quadrilateral");
 
-  // H: origem (retângulo) -> destino (quadrilátero); usamos H⁻¹ p/ inverse mapping
+  // H: source (rectangle) -> destination (quadrilateral); we use H⁻¹ for inverse mapping
   const H = solveHomography(srcCorners, qRel);
-  if (!H) throw new RangeError("quadrilátero inválido (degenerado ou auto-intercetante)");
+  if (!H) throw new RangeError("invalid quadrilateral (degenerate or self-intersecting)");
   const Hi = invert3x3(H);
-  if (!Hi) throw new RangeError("quadrilátero inválido (determinante nulo)");
+  if (!Hi) throw new RangeError("invalid quadrilateral (zero determinant)");
   const [i0, i1, i2, i3, i4, i5, i6, i7, i8] = Hi as [number, number, number, number, number, number, number, number, number];
 
   const out = alloc(nw, nh);
@@ -89,16 +90,16 @@ export function perspective(img: ImageBuf, quad: Quad): ImageBuf {
 
   for (let oy = 0; oy < nh; oy++) {
     for (let ox = 0; ox < nw; ox++) {
-      const X = ox + 0.5; // coord destino relativa ao próprio bbox
+      const X = ox + 0.5; // destination coord relative to its own bbox
       const Y = oy + 0.5;
-      // (X,Y,1) -> H⁻¹ -> origem em unidades de extensão
+      // (X,Y,1) -> H⁻¹ -> source in extent units
       const denom = i6 * X + i7 * Y + i8;
       const d = (oy * nw + ox) * 4;
-      if (Math.abs(denom) < 1e-12) continue; // fora do plano (caso patológico)
+      if (Math.abs(denom) < 1e-12) continue; // outside the plane (pathological case)
       const sxExt = (i0 * X + i1 * Y + i2) / denom;
       const syExt = (i3 * X + i4 * Y + i5) / denom;
-      // extensão: origem válida em [0,w]×[0,h]; amostra em centro de pixel
-      if (sxExt < 0 || syExt < 0 || sxExt > w || syExt > h) continue; // transparente
+      // extent: valid source in [0,w]x[0,h]; sample at pixel center
+      if (sxExt < 0 || syExt < 0 || sxExt > w || syExt > h) continue; // transparent
       const sx = Math.min(Math.max(sxExt - 0.5, 0), w - 1);
       const sy = Math.min(Math.max(syExt - 0.5, 0), h - 1);
       const x0 = Math.floor(sx);

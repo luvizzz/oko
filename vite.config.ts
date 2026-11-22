@@ -1,14 +1,14 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/oko/", // servido em subpath (tailscale serve /oko); dev também cai em /oko/
+  base: "/",
   server: {
     host: "0.0.0.0",
     port: 5173,
-    watch: { usePolling: true }, // obrigatório no macOS: inotify não atravessa o volume Docker
+    watch: { usePolling: true },
   },
   test: {
-    environment: "node", // core/ roda headless: proibido jsdom aqui
+    environment: "node",
     include: ["tests/**/*.test.ts"],
   },
 });

@@ -1,8 +1,8 @@
 /**
- * core/history.ts — M5: pilha de desfazer/refazer sobre a lista de Ops.
- * O array de ops é COMPARTILHADO com a sessão (load recebe a mesma referência),
- * então salvar a sessão salva o histórico junto — uma fonte de verdade só.
- * Refazer é invalidado por qualquer operação nova (semântica padrão de editor).
+ * core/history.ts — undo/redo stack over the list of Ops.
+ * The ops array is SHARED with the session (load takes the same reference),
+ * so saving the session saves the history along with it — a single source of truth.
+ * Redo is invalidated by any new operation (standard editor semantics).
  */
 import type { Op } from "./pipeline";
 
@@ -10,7 +10,7 @@ export class History {
   ops: Op[] = [];
   private redoStack: Op[] = [];
 
-  /** assume a referência do array — push/pop/muta nele (sessão e histórico são o mesmo array) */
+  /** takes the array's reference — push/pop/mutate on it (session and history are the same array) */
   load(ops: Op[]): void {
     this.ops = ops;
     this.redoStack = [];
@@ -44,7 +44,7 @@ export class History {
   }
 
   clear(): void {
-    this.ops.length = 0; // mantém a referência compartilhada
+    this.ops.length = 0; // keeps the shared reference
     this.redoStack.length = 0;
   }
 }

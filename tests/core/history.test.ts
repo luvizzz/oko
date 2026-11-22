@@ -7,7 +7,7 @@ const rot: Op = { type: "rotateZ", degrees: 90 };
 const crop: Op = { type: "crop", x: 0, y: 0, width: 4, height: 4 };
 
 describe("core/history", () => {
-  it("push entra na pilha; undo remove; redo repõe na mesma ordem", () => {
+  it("push enters the stack; undo removes; redo restores in the same order", () => {
     const h = new History();
     h.push(flip);
     h.push(rot);
@@ -18,7 +18,7 @@ describe("core/history", () => {
     expect(h.ops).toEqual([flip, rot]);
   });
 
-  it("operação nova invalida o refazer", () => {
+  it("a new operation invalidates redo", () => {
     const h = new History();
     h.push(flip);
     h.undo();
@@ -28,24 +28,24 @@ describe("core/history", () => {
     expect(h.ops).toEqual([crop]);
   });
 
-  it("undo/redo em pilha vazia retornam null (sem exceção)", () => {
+  it("undo/redo on an empty stack return null (no exception)", () => {
     const h = new History();
     expect(h.undo()).toBeNull();
     expect(h.redo()).toBeNull();
     expect(h.canUndo).toBe(false);
   });
 
-  it("load assume a referência: mutar o histórico mutar o array da sessão", () => {
+  it("load takes the reference: mutating the history mutates the session array", () => {
     const sessionOps: Op[] = [flip];
     const h = new History();
     h.load(sessionOps);
     h.push(rot);
-    expect(sessionOps).toEqual([flip, rot]); // mesma referência = sessão salva junto
+    expect(sessionOps).toEqual([flip, rot]); // same reference = session saved along
     h.undo();
     expect(sessionOps).toEqual([flip]);
   });
 
-  it("clear zera mas preserva a referência compartilhada", () => {
+  it("clear zeroes but preserves the shared reference", () => {
     const sessionOps: Op[] = [flip];
     const h = new History();
     h.load(sessionOps);
@@ -54,7 +54,7 @@ describe("core/history", () => {
     expect(h.ops).toBe(sessionOps);
   });
 
-  it("undo em cascata devolve na ordem inversa (LIFO)", () => {
+  it("cascading undo returns in reverse order (LIFO)", () => {
     const h = new History();
     h.push(flip);
     h.push(rot);

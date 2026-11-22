@@ -9,20 +9,20 @@ function grid(w: number, h: number) {
 }
 
 describe("core/crop", () => {
-  it("extrai a subregião correta", () => {
+  it("extracts the correct subregion", () => {
     const out = crop(grid(4, 3), 1, 1, 2, 2);
     expect(out.width).toBe(2);
     expect(out.height).toBe(2);
-    expect(getPixel(out, 0, 0)).toEqual([10, 10, 0, 255]); // origem (1,1)
-    expect(getPixel(out, 1, 1)).toEqual([20, 20, 0, 255]); // origem (2,2)
+    expect(getPixel(out, 0, 0)).toEqual([10, 10, 0, 255]); // source (1,1)
+    expect(getPixel(out, 1, 1)).toEqual([20, 20, 0, 255]); // source (2,2)
   });
 
-  it("crop da imagem inteira é identidade", () => {
+  it("cropping the whole image is identity", () => {
     const img = grid(3, 2);
     expect(crop(img, 0, 0, 3, 2).data).toEqual(img.data);
   });
 
-  it("rejeita fora dos limites, área vazia e coordenadas fracionárias", () => {
+  it("rejects out-of-bounds, empty area and fractional coordinates", () => {
     const img = grid(4, 4);
     expect(() => crop(img, 3, 3, 2, 2)).toThrow(RangeError);
     expect(() => crop(img, -1, 0, 2, 2)).toThrow(RangeError);

@@ -3,17 +3,17 @@ import { alloc } from "../../src/core/image";
 import { runPipeline, type Op } from "../../src/core/pipeline";
 
 describe("core/pipeline", () => {
-  it("lista vazia retorna a imagem sem tocar", () => {
+  it("empty list returns the image untouched", () => {
     const img = alloc(2, 2);
     expect(runPipeline(img, [])).toBe(img);
   });
 
-  it("__none__ é no-op", () => {
+  it("__none__ is a no-op", () => {
     const img = alloc(2, 2);
     expect(runPipeline(img, [{ type: "__none__" }])).toBe(img);
   });
 
-  it("encadeia ops M2 de ponta a ponta", () => {
+  it("chains ops end to end", () => {
     const img = alloc(4, 2);
     const out = runPipeline(img, [
       { type: "crop", x: 0, y: 0, width: 4, height: 2 },
@@ -25,9 +25,9 @@ describe("core/pipeline", () => {
     expect(out.height).toBe(2);
   });
 
-  it("op desconhecida (dado corrompido na sessão salva) falha explicitamente", () => {
+  it("unknown op (corrupted data in a saved session) fails explicitly", () => {
     const img = alloc(2, 2);
-    const bogus = { type: "teleporte" } as unknown as Op;
-    expect(() => runPipeline(img, [bogus])).toThrow("operação desconhecida");
+    const bogus = { type: "teleport" } as unknown as Op;
+    expect(() => runPipeline(img, [bogus])).toThrow("unknown operation");
   });
 });

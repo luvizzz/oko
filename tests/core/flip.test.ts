@@ -3,8 +3,8 @@ import { alloc, fromData, getPixel, setPixel, type ImageBuf } from "../../src/co
 import { flip } from "../../src/core/flip";
 
 function pattern2x2(): ImageBuf {
-  // TL=vermelho  TR=verde
-  // BL=azul      BR=branco
+  // TL=red      TR=green
+  // BL=blue     BR=white
   const img = alloc(2, 2);
   setPixel(img, 0, 0, 255, 0, 0);
   setPixel(img, 1, 0, 0, 255, 0);
@@ -14,25 +14,25 @@ function pattern2x2(): ImageBuf {
 }
 
 describe("core/flip", () => {
-  it("flip x troca esquerda↔direita", () => {
+  it("flip x swaps left↔right", () => {
     const out = flip(pattern2x2(), "x");
-    expect(getPixel(out, 0, 0)).toEqual([0, 255, 0, 255]); // verde foi p/ esquerda
+    expect(getPixel(out, 0, 0)).toEqual([0, 255, 0, 255]); // green moved to the left
     expect(getPixel(out, 1, 1)).toEqual([0, 0, 255, 255]);
   });
 
-  it("flip y troca cima↔baixo", () => {
+  it("flip y swaps top↔bottom", () => {
     const out = flip(pattern2x2(), "y");
-    expect(getPixel(out, 0, 0)).toEqual([0, 0, 255, 255]); // azul subiu
+    expect(getPixel(out, 0, 0)).toEqual([0, 0, 255, 255]); // blue moved up
     expect(getPixel(out, 1, 0)).toEqual([255, 255, 255, 255]);
   });
 
-  it("flip duas vezes = identidade", () => {
+  it("flip twice = identity", () => {
     const img = pattern2x2();
     expect(flip(flip(img, "x"), "x").data).toEqual(img.data);
     expect(flip(flip(img, "y"), "y").data).toEqual(img.data);
   });
 
-  it("não muta a imagem de entrada", () => {
+  it("does not mutate the input image", () => {
     const img = pattern2x2();
     const before = new Uint8ClampedArray(img.data);
     flip(img, "x");

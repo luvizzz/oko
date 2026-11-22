@@ -1,8 +1,8 @@
 /**
- * core/pipeline.ts — a edição do oko é uma LISTA de operações puras (D9/M5):
- * o estado da app = imagem original + ops. Undo/redo e persistência de sessão
- * derivam disso de graça — nunca guardamos snapshots de pixels.
- * A lista de tipos cresce a cada milestone; op desconhecida = erro explícito.
+ * core/pipeline.ts — oko's editing is a LIST of pure operations:
+ * the app state = original image + ops. Undo/redo and session persistence
+ * derive from that for free — we never store pixel snapshots.
+ * The list of op types grows as features land; unknown op = explicit error.
  */
 import type { ImageBuf } from "./image";
 import { flip } from "./flip";
@@ -15,15 +15,15 @@ import { border, type BorderShape } from "./border";
 import { gaussianBlur, sharpen } from "./filter";
 
 export type Op =
-  | { type: "resize"; width: number; height: number } // M2 ✅
-  | { type: "crop"; x: number; y: number; width: number; height: number } // M2 ✅
-  | { type: "rotateZ"; degrees: number } // M2 ✅
-  | { type: "flip"; axis: "x" | "y" } // M2 ✅
-  | { type: "perspective"; quad: Quad } // M3 ✅
-  | { type: "colorGain"; r: number; g: number; b: number } // M4 ✅
-  | { type: "border"; shape: BorderShape; radius: number } // M4 ✅
-  | { type: "blur"; sigma: number } // M6 ✅
-  | { type: "sharpen"; amount: number; sigma: number } // M6 ✅
+  | { type: "resize"; width: number; height: number }
+  | { type: "crop"; x: number; y: number; width: number; height: number }
+  | { type: "rotateZ"; degrees: number }
+  | { type: "flip"; axis: "x" | "y" }
+  | { type: "perspective"; quad: Quad }
+  | { type: "colorGain"; r: number; g: number; b: number }
+  | { type: "border"; shape: BorderShape; radius: number }
+  | { type: "blur"; sigma: number }
+  | { type: "sharpen"; amount: number; sigma: number }
   | { type: "__none__" };
 
 export function applyOp(img: ImageBuf, op: Op): ImageBuf {
@@ -59,8 +59,8 @@ export function applyOp(img: ImageBuf, op: Op): ImageBuf {
       out = sharpen(out, op.amount, op.sigma);
       break;
     default: {
-      const t: never = op; // exaustividade: TS quebra quando novo Op entra sem case
-      throw new Error(`operação desconhecida: ${JSON.stringify(t)}`);
+      const t: never = op; // exhaustiveness: TS breaks when a new Op enters without a case
+      throw new Error(`unknown operation: ${JSON.stringify(t)}`);
     }
   }
   return out;
@@ -73,28 +73,28 @@ export function runPipeline(img: ImageBuf, ops: readonly Op[]): ImageBuf {
 }
 
 /**
- * Cache de prefixo do pipeline: guarda o resultado intermediário APÓS cada op.
- * A cada run, reaproveita o maior prefixo comum de ops (comparação por JSON —
- * ops são minúsculas) e só executa a cauda nova. É isso que faz o preview de
- * slider custar UMA op (a do slider) em vez do pipeline inteiro, e o addOp
- * validar sem re-calcular o que o preview já rodou.
- * Custo de memória: 1 ImageBuf por op — aceitável para app pessoal.
+ * Pipeline prefix cache: stores the intermediate result AFTER each op.
+ * Each run reuses the longest common prefix of ops (compared by JSON —
+ * ops are tiny) and only executes the new tail. This is what makes the slider
+ * preview cost ONE op (the slider's) instead of the whole pipeline, and lets
+ * addOp validate without recomputing what the preview already ran.
+ * Memory cost: 1 ImageBuf per op — acceptable for a personal app.
  */
 export class PipelineCache {
   private base: ImageBuf | null = null;
   private ops: readonly Op[] = [];
-  /** stages[i] = resultado após ops[0..i-1]; stages[0] === base */
+  /** stages[i] = result after ops[0..i-1]; stages[0] === base */
   private stages: ImageBuf[] = [];
 
   run(base: ImageBuf, ops: readonly Op[]): ImageBuf {
     if (this.base !== base) {
       this.ops = [];
-      this.stages = [base]; // stages[0] é SEMPRE a base
+      this.stages = [base]; // stages[0] is ALWAYS the base
       this.base = base;
     }
-    // prefixo reusável NUNCA passa dos estágios já calculados: history.ops é
-    // o MESMO array (mutado in-place), então sameOp não percebe push/pop —
-    // stages.length é a única verdade sobre o que já foi computado
+    // reusable prefix NEVER goes past the already-computed stages: history.ops is
+    // the SAME array (mutated in-place), so sameOp doesn't notice push/pop —
+    // stages.length is the only truth about what has already been computed
     let p = 0;
     while (p < ops.length && p + 1 < this.stages.length && sameOp(this.ops[p]!, ops[p]!)) p++;
     this.ops = ops;
@@ -119,12 +119,12 @@ function sameOp(a: Op, b: Op): boolean {
 }
 
 /**
- * Reescala os parâmetros GEOMÉTRICOS de uma op pelo fator f do proxy de
- * preview (D-perf): o preview roda a pipeline inteira sobre uma cópia da
- * original reduzida, e cada op precisa ver coordenadas no sistema do proxy
- * para o resultado ser visualmente equivalente ao de resolução cheia.
- * Switch exaustivo de propósito: op nova com parâmetro de geometria quebra o
- * TS aqui até ser listada — senão o preview mentiria silenciosamente.
+ * Rescales the GEOMETRIC parameters of an op by the preview proxy's factor f:
+ * the preview runs the whole pipeline over a downscaled copy of the original,
+ * and each op must see coordinates in the proxy's coordinate system for the
+ * result to be visually equivalent to the full-resolution one.
+ * Exhaustive switch on purpose: a new op with a geometry parameter breaks TS
+ * here until it's listed — otherwise the preview would silently lie.
  */
 export function scaleOp(op: Op, f: number): Op {
   if (f >= 1) return op;

@@ -25,7 +25,7 @@ const sel = $<HTMLDivElement>("sel");
 const canvas = $<HTMLCanvasElement>("canvas");
 const view = new CanvasView(canvas, stage);
 
-// girar o telefone / redimensionar a janela: recomputar encaixe e overlays
+// phone rotation / window resize: recompute fit and overlays
 window.addEventListener("resize", () => {
   view.fit();
   if (cropMode && selBox) {
@@ -40,24 +40,24 @@ window.addEventListener("resize", () => {
 });
 
 let session: Session | null = null;
-let original: ImageBuf | null = null; // decodificada 1x; ops rodam sobre ela a cada render
-const history = new History(); // ops vivem no MESMO array da sessão (referência compartilhada)
+let original: ImageBuf | null = null; // decoded once; ops run over it on every render
+const history = new History(); // ops live in the SAME array as the session (shared reference)
 
-/** Op temporária dos sliders (preview ao vivo); só vira sessão no ✓ do FAB. */
+/** Temporary op from the sliders (live preview); it only becomes session state on the FAB ✓. */
 let previewOp: Op | null = null;
 
-/* ---- perf (M6) ----
- * fullCache: cache de prefixo do pipeline — o preview de slider custa só a op
- * do slider (o resto dos estágios já está calculado), e addOp valida de graça.
- * Proxy: enquanto o dedo está no slider, a pipeline roda sobre uma cópia
- * reduzida da original (ops reescalonadas via scaleOp) — ~3x menos pixels.
- * Ao soltar ('change'), renderiza a resolução cheia de novo. */
+/* ---- perf ----
+ * fullCache: pipeline prefix cache — a slider preview costs only the slider's
+ * op (the rest of the stages is already computed), and addOp validates for free.
+ * Proxy: while the finger is on the slider, the pipeline runs on a downscaled
+ * copy of the original (ops rescaled via scaleOp) — ~3x fewer pixels.
+ * On release ('change'), render full resolution again. */
 const fullCache = new PipelineCache();
 const proxyCache = new PipelineCache();
 let proxyBase: ImageBuf | null = null;
 const PROXY_MAX_DIM = 900;
 let livePreview = false;
-// marcador de build p/ E2E: confirma que o browser roda o bundle esperado
+// build marker for E2E: confirms the browser runs the expected bundle
 (window as unknown as { __okoBuild: string }).__okoBuild = "m7-dock-1";
 
 function displayBuf(): ImageBuf | null {
@@ -68,7 +68,7 @@ function displayBuf(): ImageBuf | null {
 function previewBuf(): ImageBuf | null {
   if (!original || !session) return null;
   const f = Math.min(1, PROXY_MAX_DIM / Math.max(original.width, original.height));
-  if (f >= 1) return displayBuf(); // imagem pequena: proxy não compensa
+  if (f >= 1) return displayBuf(); // small image: proxy isn't worth it
   if (!proxyBase) {
     proxyBase = lanczosResize(original, Math.round(original.width * f), Math.round(original.height * f));
   }
@@ -87,26 +87,26 @@ function render(label?: string): void {
   const buf = livePreview ? previewBuf() : displayBuf();
   if (!buf) return;
   view.render(buf);
-  // dimensões nos inputs/são SEMPRE as da resolução cheia: o proxy tem outra
-  // escala e previewOps nunca mudam dimensões (resize/crop não têm preview)
+  // dimensions in the inputs are ALWAYS the full-resolution ones: the proxy
+  // has a different scale, and previewOps never change dimensions (resize/crop have no preview)
   const dims = livePreview ? fullCache.run(original, history.ops) : buf;
   inpW.value = String(dims.width);
   inpH.value = String(dims.height);
-  status.textContent = label ?? `${session.filename} — ${dims.width}×${dims.height} · ${history.ops.length} edição(ões)`;
+  status.textContent = label ?? `${session.filename} — ${dims.width}×${dims.height} · ${history.ops.length} edit(s)`;
   $btn("btn-undo").disabled = !history.canUndo;
   $btn("btn-redo").disabled = !history.canRedo;
   updateFab();
 }
 
-/** valida a op rodando o pipeline completo ANTES de persistir (sessão nunca guarda op quebrada) */
+/** validates the op by running the full pipeline BEFORE persisting (the session never stores a broken op) */
 async function addOp(op: Op): Promise<void> {
   if (!original || !session) return;
   previewOp = null;
   try {
-    // validação incremental: o prefixo já está no cache; só a op nova executa
+    // incremental validation: the prefix is already cached; only the new op runs
     fullCache.run(original, [...history.ops, op]);
   } catch (err) {
-    status.textContent = `erro: ${err instanceof Error ? err.message : err}`;
+    status.textContent = `error: ${err instanceof Error ? err.message : err}`;
     return;
   }
   history.push(op);
@@ -124,7 +124,7 @@ function setToolsEnabled(on: boolean): void {
 }
 
 async function openImage(file: File): Promise<void> {
-  status.textContent = "carregando…";
+  status.textContent = "loading…";
   try {
     original = await loadImageFile(file);
     session = { filename: file.name, savedAt: Date.now(), ops: [], image: file };
@@ -132,14 +132,14 @@ async function openImage(file: File): Promise<void> {
     resetPreviewState();
     setPanel(null);
     setToolsEnabled(true);
-    render(`${file.name} — carregada`);
+    render(`${file.name} — loaded`);
     await saveSession(session);
   } catch (err) {
-    status.textContent = `erro: ${err instanceof Error ? err.message : err}`;
+    status.textContent = `error: ${err instanceof Error ? err.message : err}`;
   }
 }
 
-// ---------- abrir/exportar ----------
+// ---------- open/export ----------
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
   if (file) await openImage(file);
@@ -162,49 +162,49 @@ $btn("btn-export-jpg").addEventListener("click", async () => {
   downloadBlob(blob, "oko-export.jpg");
 });
 
-// ---------- desfazer / refazer (M5) ----------
+// ---------- undo / redo ----------
 $btn("btn-undo").addEventListener("click", async () => {
   const op = history.undo();
   if (!op || !session) return;
   previewOp = null;
   await saveSession(session);
-  render(`desfeito: ${op.type}`);
+  render(`undone: ${op.type}`);
 });
 $btn("btn-redo").addEventListener("click", async () => {
   const op = history.redo();
   if (!op || !session) return;
   previewOp = null;
   await saveSession(session);
-  render(`refeito: ${op.type}`);
+  render(`redone: ${op.type}`);
 });
 
-// ---------- M7: dock de 5 ícones + painéis contextuais ----------
+// ---------- 5-icon dock + contextual panels ----------
 const panelEls: Record<string, HTMLElement> = {
-  ajustar: $("panel-ajustar"),
-  cortar: $("panel-cortar"),
-  girar: $("panel-girar"),
-  efeitos: $("panel-efeitos"),
-  salvar: $("panel-salvar"),
+  adjust: $("panel-adjust"),
+  crop: $("panel-crop"),
+  rotate: $("panel-rotate"),
+  effects: $("panel-effects"),
+  save: $("panel-save"),
 };
 const dockBtns = Array.from(dockEl.querySelectorAll<HTMLButtonElement>("button"));
 let openPanel: string | null = null;
 
 function setPanel(name: string | null): void {
-  // tocar no ícone aberto fecha; tocar em outro troca
+  // tapping the open icon closes it; tapping another one switches
   openPanel = openPanel === name ? null : name;
   for (const [k, el] of Object.entries(panelEls)) el.classList.toggle("open", k === openPanel);
   for (const b of dockBtns) b.classList.toggle("on", b.dataset["panel"] === openPanel);
 }
 for (const b of dockBtns) b.addEventListener("click", () => setPanel(b.dataset["panel"] ?? null));
 
-// ---------- M7: FAB ✓/✕ — único ponto de aplicar/cancelar ----------
+// ---------- FAB ✓/✕ — single apply/cancel point ----------
 function updateFab(): void {
   const active = Boolean(session) && (cropMode || perspMode || previewOp !== null);
   fab.style.display = active ? "flex" : "none";
-  fabApply.disabled = cropMode && !selBox; // recorte ainda sem seleção: ✓ espera
+  fabApply.disabled = cropMode && !selBox; // crop still has no selection: ✓ waits
 }
 
-/** ✓ aplica o que estiver pendente, na precedência: crop > perspectiva > preview */
+/** ✓ applies whatever is pending, in precedence order: crop > perspective > preview */
 function applyPending(): void {
   if (cropMode) return applyCrop();
   if (perspMode) return applyPersp();
@@ -215,7 +215,7 @@ function applyPending(): void {
   void addOp(op);
 }
 
-/** ✕ descarta a edição pendente (a op já aplicada NÃO é desfeita — use ↩) */
+/** ✕ discards the pending edit (an already-applied op is NOT undone — use ↩) */
 function cancelPending(): void {
   if (cropMode) return exitCrop();
   if (perspMode) return exitPersp();
@@ -224,12 +224,12 @@ function cancelPending(): void {
   if (previewOp.type === "rotateZ") setAngle(0);
   previewOp = null;
   livePreview = false;
-  render("edição cancelada");
+  render("edit cancelled");
 }
 fabApply.addEventListener("click", applyPending);
 fabCancel.addEventListener("click", cancelPending);
 
-// ---------- botões que aplicam direto (sem preview) ----------
+// ---------- buttons that apply directly (no preview) ----------
 $btn("btn-flip-x").addEventListener("click", () => void addOp({ type: "flip", axis: "x" }));
 $btn("btn-flip-y").addEventListener("click", () => void addOp({ type: "flip", axis: "y" }));
 $btn("btn-rot-cw").addEventListener("click", () => void addOp({ type: "rotateZ", degrees: 90 }));
@@ -245,10 +245,10 @@ $btn("btn-reset").addEventListener("click", async () => {
   history.clear();
   await saveSession(session);
   exitCrop();
-  render("edições descartadas");
+  render("edits discarded");
 });
 
-// ---------- bolhas de valor + trilha preenchida nos sliders (M7) ----------
+// ---------- value bubbles + filled track on sliders ----------
 interface BubbleSlider extends HTMLInputElement {
   __syncBubble?: () => void;
 }
@@ -262,7 +262,7 @@ function bindBubble(el: BubbleSlider, fmt: (v: number) => string): void {
     const p = ((Number(el.value) - min) / (max - min)) * 100;
     wrap.style.setProperty("--fill", `${p}%`);
     if (bub) {
-      // compensa meia-largura do thumb (34px) nas pontas
+      // compensates half the thumb width (34px) at the ends
       bub.style.left = `calc(${p}% + ${(0.5 - p / 100) * 34}px)`;
       bub.textContent = fmt(Number(el.value));
     }
@@ -273,10 +273,10 @@ function bindBubble(el: BubbleSlider, fmt: (v: number) => string): void {
     sync();
   });
   el.addEventListener("change", () => window.setTimeout(() => wrap?.classList.remove("live"), 400));
-  el["__syncBubble"] = sync; // p/ resets programáticos (✓/✕)
+  el["__syncBubble"] = sync; // for programmatic resets (✓/✕)
 }
 
-// ---------- cor com preview (M4) ----------
+// ---------- color with preview ----------
 const slR = $input("sl-r");
 const slG = $input("sl-g");
 const slB = $input("sl-b");
@@ -284,7 +284,7 @@ const slRadius = $input("sl-radius");
 
 let rafPending = false;
 function previewRender(): void {
-  if (rafPending) return; // 1 render por frame, não por evento de slider
+  if (rafPending) return; // 1 render per frame, not per slider event
   rafPending = true;
   requestAnimationFrame(() => {
     rafPending = false;
@@ -293,9 +293,9 @@ function previewRender(): void {
 }
 
 /**
- * 'input' (dedo arrastando) renderiza no proxy de baixa resolução;
- * 'change' (dedo soltou) volta para a resolução cheia — o usuário sempre
- * termina o gesto vendo o resultado real.
+ * 'input' (finger dragging) renders on the low-resolution proxy;
+ * 'change' (finger released) returns to full resolution — the user always
+ * ends the gesture seeing the real result.
  */
 function bindLivePreview(el: HTMLInputElement, update: () => void): void {
   el.addEventListener("input", () => {
@@ -329,7 +329,7 @@ function resetRGB(): void {
   previewRender();
 }
 
-// ---------- ângulo com preview (M7: rotação entra no modelo slider→✓) ----------
+// ---------- angle with preview (rotation follows the slider→✓ model) ----------
 function setAngle(deg: number): void {
   inpAngle.value = String(deg);
   (inpAngle as BubbleSlider).__syncBubble?.();
@@ -341,7 +341,7 @@ bindLivePreview(inpAngle, () => {
   previewRender();
 });
 
-// ---------- borda com preview (M4) ----------
+// ---------- border with preview ----------
 const shapeBtns: Record<string, HTMLButtonElement> = {
   square: $btn("btn-shape-square"),
   oval: $btn("btn-shape-oval"),
@@ -371,7 +371,7 @@ for (const [shape, btn] of Object.entries(shapeBtns)) {
 bindBubble(slRadius, (v) => `${v}%`);
 bindLivePreview(slRadius, borderPreview);
 
-// ---------- desfoque / nitidez com preview (M6) ----------
+// ---------- blur / sharpen with preview ----------
 const slBlur = $input("sl-blur");
 const slSharp = $input("sl-sharp");
 
@@ -387,10 +387,10 @@ bindLivePreview(slSharp, () => {
   previewRender();
 });
 
-// qualidade não é preview de imagem — só bolha
+// quality is not an image preview — bubble only
 bindBubble($input("sl-quality") as BubbleSlider, (v) => `${v}`);
 
-// ---------- crop interativo ----------
+// ---------- interactive crop ----------
 let cropMode = false;
 let dragStart: { x: number; y: number } | null = null;
 let dragCur: { x: number; y: number } | null = null;
@@ -443,7 +443,7 @@ canvas.addEventListener("pointerup", () => {
   const w = selBox.x1 - selBox.x0;
   const h = selBox.y1 - selBox.y0;
   if (w < 4 || h < 4) {
-    selBox = null; // clique sem arrasto apenas limpa a seleção
+    selBox = null; // click without drag just clears the selection
     sel.style.display = "none";
   }
   updateFab();
@@ -463,7 +463,7 @@ function applyCrop(): void {
   if (w >= 1 && h >= 1) void addOp({ type: "crop", x, y, width: w, height: h });
 }
 
-// ---------- perspectiva interativa (M3) ----------
+// ---------- interactive perspective ----------
 const KEYS = ["tl", "tr", "bl", "br"] as const;
 const handlesWrap = $<HTMLDivElement>("handles");
 const quadSvg = document.getElementById("quadsvg") as unknown as SVGSVGElement;
@@ -537,7 +537,7 @@ for (const el of handleEls) {
     const s = canvasScale();
     const buf = displayBuf();
     if (!buf) return;
-    // permite puxar um pouco para fora (até 25%) — o trim cuida do resto
+    // allows dragging a bit outside (up to 25%) — the trim handles the rest
     const x = Math.max(-0.25 * buf.width, Math.min(1.25 * buf.width, (e.clientX - r.left) / s));
     const y = Math.max(-0.25 * buf.height, Math.min(1.25 * buf.height, (e.clientY - r.top) / s));
     quad[key] = [x, y];
@@ -556,8 +556,8 @@ loadSession()
     original = await loadImageFile(new File([saved.image], saved.filename));
     resetPreviewState();
     setToolsEnabled(true);
-    render(`sessão restaurada — ${saved.filename}`);
+    render(`session restored — ${saved.filename}`);
   })
   .catch(() => {
-    status.textContent = "nenhuma imagem";
+    status.textContent = "no image";
   });
