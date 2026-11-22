@@ -1,7 +1,7 @@
 {
   "name": "oko",
   "short_name": "oko",
-  "description": "Editor de imagens com algoritmos escritos à mão",
+  "description": "Online image editor",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

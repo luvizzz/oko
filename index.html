@@ -54,7 +54,6 @@
 
     .shape.on { outline: 1px solid var(--accent); color: #fff; }
 
-    /* ---- painéis contextuais (M7): um aberto por vez ---- */
     #panels { background: #232329; border-top: 1px solid #333; }
     #panels.disabled { opacity: 0.35; pointer-events: none; }
     #panels .panel { display: none; flex-direction: column; gap: 6px; padding: 10px calc(16px + env(safe-area-inset-right)) 10px calc(16px + env(safe-area-inset-left)); max-height: 40dvh; overflow-y: auto; }
@@ -63,7 +62,6 @@
     #panels .p-hint { font-size: 11px; color: #9a9aa4; text-align: center; }
     #panels input[type="number"] { width: 64px; background: #2a2a31; color: #e8e8ea; border: 1px solid #3a3a44; border-radius: 6px; padding: 8px 6px; font-size: 13px; }
 
-    /* ---- dock fixo de 5 ícones (M7) ---- */
     #dock { display: flex; justify-content: space-evenly; padding: 8px 6px calc(10px + env(safe-area-inset-bottom)); background: #1e1e23; border-top: 1px solid #333; }
     #dock.disabled { opacity: 0.35; pointer-events: none; }
     #dock button { background: transparent; border: 0; color: #9a9aa4; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; padding: 4px 8px; border-radius: 12px; min-width: 58px; }
@@ -77,83 +75,83 @@
 <body>
   <header>
     <h1>oko</h1>
-    <span id="status">nenhuma imagem</span>
+    <span id="status">No image</span>
     <input type="file" id="file" accept="image/*" />
-    <button id="btn-open" title="abrir nova imagem">abrir</button>
+    <button id="btn-open" title="Open new image">open</button>
   </header>
 
   <div id="stage">
     <div id="wrap"><canvas id="canvas" width="0" height="0"></canvas><div id="sel"></div><svg id="quadsvg"><polygon points="" fill="rgba(125,178,255,.12)" stroke="#7db2ff" stroke-width="1.5" stroke-dasharray="4 3"/></svg><div id="handles"><i class="handle" data-i="0"></i><i class="handle" data-i="1"></i><i class="handle" data-i="2"></i><i class="handle" data-i="3"></i></div></div>
     <div id="float-ur">
-      <button id="btn-undo" title="desfazer" disabled>↩</button>
-      <button id="btn-redo" title="refazer" disabled>↪</button>
+      <button id="btn-undo" title="undo" disabled>↩</button>
+      <button id="btn-redo" title="redo" disabled>↪</button>
     </div>
     <div id="fab">
-      <button id="fab-cancel" class="no" title="cancelar">✕</button>
-      <button id="fab-apply" class="ok" title="aplicar">✓</button>
+      <button id="fab-cancel" class="no" title="cancel">✕</button>
+      <button id="fab-apply" class="ok" title="apply">✓</button>
     </div>
   </div>
 
   <div id="panels" class="disabled">
-    <div class="panel" id="panel-ajustar">
-      <div class="sld"><label style="color:#ff8a8a">vermelho</label><input type="range" id="sl-r" min="0" max="200" value="100" /><span class="bubble"></span></div>
-      <div class="sld"><label style="color:#9dff9d">verde</label><input type="range" id="sl-g" min="0" max="200" value="100" /><span class="bubble"></span></div>
-      <div class="sld"><label style="color:#8ab4ff">azul</label><input type="range" id="sl-b" min="0" max="200" value="100" /><span class="bubble"></span></div>
-      <div class="p-hint">✓ aplica o ganho · ✕ zera os canais</div>
+    <div class="panel" id="panel-adjust">
+      <div class="sld"><label style="color:#ff8a8a">red</label><input type="range" id="sl-r" min="0" max="200" value="100" /><span class="bubble"></span></div>
+      <div class="sld"><label style="color:#9dff9d">green</label><input type="range" id="sl-g" min="0" max="200" value="100" /><span class="bubble"></span></div>
+      <div class="sld"><label style="color:#8ab4ff">blue</label><input type="range" id="sl-b" min="0" max="200" value="100" /><span class="bubble"></span></div>
+      <div class="p-hint">Apply gain X reset</div>
     </div>
 
     <div class="panel" id="panel-cortar">
       <div class="prow">
-        <button id="btn-crop">recortar</button>
-        <button id="btn-persp" title="puxe os 4 cantos para dar perspectiva">perspectiva</button>
+        <button id="btn-crop">crop</button>
+        <button id="btn-persp" title="adjust 4 corners for perspective">perspective</button>
       </div>
       <div class="prow">
         <label>L <input type="number" id="inp-w" min="1" /></label>
         <label>A <input type="number" id="inp-h" min="1" /></label>
-        <button id="btn-resize">redimensionar</button>
-        <button id="btn-reset" title="descartar edições, volta ao original">redefinir</button>
+        <button id="btn-resize">resize</button>
+        <button id="btn-reset" title="reset">reset</button>
       </div>
-      <div class="p-hint">recortar/perspectiva: ✓ aplica, ✕ cancela</div>
+      <div class="p-hint">cut/perspective: Apply X reset</div>
     </div>
 
     <div class="panel" id="panel-girar">
       <div class="prow">
-        <button id="btn-rot-ccw" title="girar 90° anti-horário">⟲90°</button>
-        <button id="btn-rot-cw" title="girar 90° horário">⟳90°</button>
-        <button id="btn-flip-x" title="espelho horizontal">↔</button>
-        <button id="btn-flip-y" title="espelho vertical">↕</button>
+        <button id="btn-rot-ccw" title="90o Counter-clock wise">⟲90°</button>
+        <button id="btn-rot-cw" title="90o Clock wise">⟳90°</button>
+        <button id="btn-flip-x" title="Horizontal flip">↔</button>
+        <button id="btn-flip-y" title="Vertical flip">↕</button>
       </div>
-      <div class="sld"><label>ângulo</label><input type="range" id="inp-angle" min="-180" max="180" step="1" value="0" /><span class="bubble"></span></div>
-      <div class="p-hint">arrastar o ângulo dá preview · ✓ confirma</div>
+      <div class="sld"><label>angle</label><input type="range" id="inp-angle" min="-180" max="180" step="1" value="0" /><span class="bubble"></span></div>
+      <div class="p-hint">slide preview angle · ✓ confirm</div>
     </div>
 
-    <div class="panel" id="panel-efeitos">
-      <div class="sld"><label>desfoque</label><input type="range" id="sl-blur" min="1" max="50" value="15" /><span class="bubble"></span></div>
-      <div class="sld"><label>nitidez</label><input type="range" id="sl-sharp" min="0" max="200" value="100" /><span class="bubble"></span></div>
+    <div class="panel" id="panel-effects">
+      <div class="sld"><label>blur</label><input type="range" id="sl-blur" min="1" max="50" value="15" /><span class="bubble"></span></div>
+      <div class="sld"><label>sharp</label><input type="range" id="sl-sharp" min="0" max="200" value="100" /><span class="bubble"></span></div>
       <div class="prow">
-        <button id="btn-shape-square" class="shape on" title="retângulo com cantos arredondados">cantos</button>
-        <button id="btn-shape-oval" class="shape" title="elipse">oval</button>
-        <button id="btn-shape-circle" class="shape" title="círculo">círculo</button>
+        <button id="btn-shape-square" class="shape on" title="square with round corners">corners</button>
+        <button id="btn-shape-oval" class="shape" title="oval">oval</button>
+        <button id="btn-shape-circle" class="shape" title="circle">circle</button>
       </div>
-      <div class="sld"><label>raio</label><input type="range" id="sl-radius" min="0" max="100" value="25" /><span class="bubble"></span></div>
-      <div class="p-hint">✓ aplica o último controle mexido</div>
+      <div class="sld"><label>radius</label><input type="range" id="sl-radius" min="0" max="100" value="25" /><span class="bubble"></span></div>
+      <div class="p-hint">✓ apply last changed</div>
     </div>
 
-    <div class="panel" id="panel-salvar">
+    <div class="panel" id="panel-save">
       <div class="prow">
         <button id="btn-export" disabled>PNG</button>
         <button id="btn-export-jpg" disabled>JPEG</button>
       </div>
-      <div class="sld"><label>qualidade</label><input type="range" id="sl-quality" min="50" max="100" value="85" /><span class="bubble"></span></div>
+      <div class="sld"><label>quality</label><input type="range" id="sl-quality" min="50" max="100" value="85" /><span class="bubble"></span></div>
     </div>
   </div>
 
   <nav id="dock" class="disabled">
-    <button data-panel="ajustar"><span class="g">☀</span>ajustar</button>
-    <button data-panel="cortar"><span class="g">⬚</span>cortar</button>
-    <button data-panel="girar"><span class="g">⟳</span>girar</button>
-    <button data-panel="efeitos"><span class="g">✦</span>efeitos</button>
-    <button data-panel="salvar"><span class="g">↓</span>salvar</button>
+    <button data-panel="adjust"><span class="g">☀</span>adjust</button>
+    <button data-panel="cut"><span class="g">⬚</span>cut</button>
+    <button data-panel="turn"><span class="g">⟳</span>turn</button>
+    <button data-panel="effects"><span class="g">✦</span>effects</button>
+    <button data-panel="save"><span class="g">↓</span>save</button>
   </nav>
 
   <script type="module" src="/src/main.ts"></script>
