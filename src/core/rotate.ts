@@ -1,14 +1,14 @@
 /**
- * core/rotate.ts — rotação livre no eixo Z (sentido horário com y pra baixo).
- * Múltiplos exatos de 90°: remapeamento de pixel a pixel, SEM interpolação.
- * Ângulos arbitrários: inverse mapping (cada pixel de destino procura a origem)
- * + bilinear — que é a exceção autorizada em D5 para warp geométrico.
- * Fora dos limites da origem → transparente (0,0,0,0).
+ * core/rotate.ts — free rotation on the Z axis (clockwise with y pointing down).
+ * Exact multiples of 90°: pixel-to-pixel remapping, NO interpolation.
+ * Arbitrary angles: inverse mapping (each destination pixel looks up its source)
+ * + bilinear — the authorized exception to the Lanczos-only rule for geometric warps.
+ * Outside the source bounds → transparent (0,0,0,0).
  */
 import { alloc, trimTransparent, type ImageBuf } from "./image";
 
 export function rotateZ(img: ImageBuf, degrees: number): ImageBuf {
-  if (!Number.isFinite(degrees)) throw new RangeError(`ângulo inválido: ${degrees}`);
+  if (!Number.isFinite(degrees)) throw new RangeError(`invalid angle: ${degrees}`);
   const ang = ((degrees % 360) + 360) % 360;
   if (ang === 0) return structuredCloneImage(img);
   if (ang === 90 || ang === 180 || ang === 270) return rotateExact(img, ang);
@@ -26,7 +26,7 @@ function rotateExact(img: ImageBuf, ang: 90 | 180 | 270): ImageBuf {
   const dst = out.data;
   for (let y = 0; y < nh; y++) {
     for (let x = 0; x < nw; x++) {
-      // mapa inverso: destino -> origem
+      // inverse map: destination -> source
       let sx: number, sy: number;
       if (ang === 90) {
         sx = y;
@@ -56,9 +56,9 @@ function rotateArbitrary(img: ImageBuf, theta: number): ImageBuf {
   const cx = (w - 1) / 2;
   const cy = (h - 1) / 2;
 
-  // bounding box dos cantos com EXTENSÃO total dos pixels de borda
-  // (retângulo [-0.5 .. w-0.5] × [-0.5 .. h-0.5], não só centros) —
-  // caso contrário cada rotação serra meio pixel da borda e a imagem encolhe.
+  // bounding box of the corners with the FULL EXTENT of the border pixels
+  // (rectangle [-0.5 .. w-0.5] x [-0.5 .. h-0.5], not just centers) —
+  // otherwise each rotation shaves half a pixel off the border and the image shrinks.
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const [px, py] of [[-0.5, -0.5], [w - 0.5, -0.5], [-0.5, h - 0.5], [w - 0.5, h - 0.5]] as const) {
     const rx = (px - cx) * cos - (py - cy) * sin;
@@ -75,13 +75,13 @@ function rotateArbitrary(img: ImageBuf, theta: number): ImageBuf {
 
   for (let oy = 0; oy < nh; oy++) {
     for (let ox = 0; ox < nw; ox++) {
-      // centro do pixel de destino -> mundo rotacionado -> origem (rotação inversa)
+      // destination pixel center -> rotated world -> source (inverse rotation)
       const wx = minX + ox + 0.5;
       const wy = minY + oy + 0.5;
       const sx = wx * cos + wy * sin + cx;
       const sy = -wx * sin + wy * cos + cy;
       const d = (oy * nw + ox) * 4;
-      // transparente só fora da EXTENSÃO [-0.5, n-0.5]; amostra com extensão de borda
+      // transparent only outside the EXTENT [-0.5, n-0.5]; sample with edge extension
       if (sx < -0.5 || sy < -0.5 || sx > w - 0.5 || sy > h - 0.5) continue;
       const scx = Math.min(Math.max(sx, 0), w - 1);
       const scy = Math.min(Math.max(sy, 0), h - 1);

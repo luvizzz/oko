@@ -1,18 +1,18 @@
 /**
- * core/filter.ts — M6: desfoque e nitidez por convolução, sem libs.
+ * core/filter.ts — blur and sharpening by convolution, no libs.
  *
- * Desfoque: gaussiano SEPARÁVEL (2 passagens 1D de k pesos em vez de k² do
- * kernel 2D — mesma matemática, ~k/2 vezes menos multiplicações). Trabalha em
- * float (D4), amostragem com edge extension (clamp), igual rotação/perspectiva.
+ * Blur: SEPARABLE gaussian (2 1D passes of k weights instead of the k² of the
+ * 2D kernel — same math, ~k/2 fewer multiplications). Works in float,
+ * sampling with edge extension (clamp), same as rotation/perspective.
  *
- * Nitidez: unsharp masking clássico — realça a diferença entre a imagem e uma
- * versão desfocada dela: out = src + amount · (src − blur(src)).
+ * Sharpening: classic unsharp masking — enhances the difference between the
+ * image and a blurred version of it: out = src + amount · (src − blur(src)).
  */
 import { type ImageBuf } from "./image";
 
 export function gaussianKernel(sigma: number): { radius: number; w: Float32Array } {
-  if (!Number.isFinite(sigma) || sigma <= 0) throw new RangeError(`sigma inválido: ${sigma}`);
-  const radius = Math.max(1, Math.ceil(3 * sigma)); // ±3σ cobre 99.7% da energia
+  if (!Number.isFinite(sigma) || sigma <= 0) throw new RangeError(`invalid sigma: ${sigma}`);
+  const radius = Math.max(1, Math.ceil(3 * sigma)); // ±3σ covers 99.7% of the energy
   const w = new Float32Array(2 * radius + 1);
   const inv2s2 = 1 / (2 * sigma * sigma);
   let sum = 0;
@@ -21,11 +21,11 @@ export function gaussianKernel(sigma: number): { radius: number; w: Float32Array
     w[i + radius] = v;
     sum += v;
   }
-  for (let i = 0; i < w.length; i++) w[i]! /= sum; // normaliza: brilho preservado
+  for (let i = 0; i < w.length; i++) w[i]! /= sum; // normalize: brightness preserved
   return { radius, w };
 }
 
-/** Uma passada 1D (horizontal ou vertical), edge extension por clamp. */
+/** One 1D pass (horizontal or vertical), edge extension by clamp. */
 function convolve1D(
   src: Float32Array,
   dst: Float32Array,
@@ -61,10 +61,10 @@ function convolve1D(
 }
 
 /**
- * Scratch reutilizável: gaussianBlur era chamado a cada frame de slider e
- * alocava 2 Float32Array (8 bytes/pixel) por chamada — o GC dominava o custo
- * (a medida mal mudava com sigma). Buffers de módulo crescem até o necessário
- * e nunca encolhem; convolve1D só lê/creve os primeiros width*height*4 slots.
+ * Reusable scratch: gaussianBlur was called every slider frame and allocated
+ * 2 Float32Array (8 bytes/pixel) per call — GC dominated the cost (the
+ * measurement barely changed with sigma). Module buffers grow to what's needed
+ * and never shrink; convolve1D only reads/writes the first width*height*4 slots.
  */
 let scratchA: Float32Array | null = null;
 let scratchB: Float32Array | null = null;
@@ -84,13 +84,13 @@ export function gaussianBlur(img: ImageBuf, sigma: number): ImageBuf {
   convolve1D(f, g, img.width, img.height, w, radius, true); // horizontal
   convolve1D(g, f, img.width, img.height, w, radius, false); // vertical
   const out: ImageBuf = { width: img.width, height: img.height, data: new Uint8ClampedArray(n) };
-  for (let i = 0; i < n; i++) out.data[i] = f[i]!; // clamp+round na volta ao 8-bit (D4)
+  for (let i = 0; i < n; i++) out.data[i] = f[i]!; // clamp+round on the way back to 8-bit
   return out;
 }
 
-/** unsharp masking: amount 0 = original; ~1 = padrão; 2 = agressivo */
+/** unsharp masking: amount 0 = original; ~1 = default; 2 = aggressive */
 export function sharpen(img: ImageBuf, amount: number, sigma = 1): ImageBuf {
-  if (!Number.isFinite(amount) || amount < 0) throw new RangeError(`amount inválido: ${amount}`);
+  if (!Number.isFinite(amount) || amount < 0) throw new RangeError(`invalid amount: ${amount}`);
   const blurred = gaussianBlur(img, sigma);
   const out: ImageBuf = { width: img.width, height: img.height, data: new Uint8ClampedArray(img.data.length) };
   for (let i = 0; i < img.data.length; i++) {

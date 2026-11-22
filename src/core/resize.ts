@@ -1,10 +1,10 @@
 /**
- * core/resize.ts — D5: Lanczos3 como ÚNICO algoritmo de resize do oko.
- * Conv separável (horizontal depois vertical) com suporte escalado no downscale:
- * ao reduzir por fator f<1 o kernel alarga por 1/f (equivalente a area-averaging
- * com kernel lanczos) — sem isso haveria aliasing. Intermediário em float32 (D4).
+ * core/resize.ts — Lanczos3 is the ONLY resize algorithm in oko.
+ * Separable convolution (horizontal then vertical) with support scaled on downscale:
+ * when shrinking by factor f<1 the kernel widens by 1/f (equivalent to area-averaging
+ * with a lanczos kernel) — without that there would be aliasing. Intermediate in float32.
  *
- * lanczos(x) = sinc(x) * sinc(x/3), cortado em |x| >= 3.
+ * lanczos(x) = sinc(x) * sinc(x/3), cut off at |x| >= 3.
  */
 import { type ImageBuf } from "./image";
 
@@ -19,21 +19,21 @@ function kernel1(x: number): number {
 
 export function lanczosResize(img: ImageBuf, width: number, height: number): ImageBuf {
   const intOk = [width, height].every(Number.isInteger);
-  if (!intOk || width <= 0 || height <= 0) throw new RangeError(`destino inválido: ${width}x${height}`);
+  if (!intOk || width <= 0 || height <= 0) throw new RangeError(`invalid destination: ${width}x${height}`);
   if (img.width === width && img.height === height) {
     return { width, height, data: new Uint8ClampedArray(img.data) };
   }
-  // eixo horizontal primeiro: axis=width, linhas permanecem img.height
+  // horizontal axis first: axis=width, rows remain img.height
   const horiz = resampleAxis(img.data, img.width, img.height, width, true);
-  // eixo vertical: axis=altura original, linhas agora são a NOVA largura (stride)
+  // vertical axis: axis=original height, rows are now the NEW width (stride)
   const vert = resampleAxis(horiz, img.height, width, height, false);
   return { width, height, data: new Uint8ClampedArray(vert) };
 }
 
 /**
- * Uma passada da conv separável.
- * srcCount = comprimento do eixo que estamos reamostrando.
- * lines    = quantidade de linhas perpendiculares (stride em pixels).
+ * One pass of the separable convolution.
+ * srcCount = length of the axis we are resampling.
+ * lines    = amount of perpendicular lines (stride in pixels).
  */
 function resampleAxis(
   src: Float32Array | Uint8ClampedArray,
@@ -47,7 +47,7 @@ function resampleAxis(
   const radius = A * filterScale;
   const out = new Float32Array(lines * dstCount * 4);
 
-  // pesos por pixel de destino (idênticos para todas as linhas)
+  // weights per destination pixel (identical for all lines)
   const weights: Float32Array[] = new Array(dstCount);
   const starts: number[] = new Array(dstCount);
   for (let d = 0; d < dstCount; d++) {

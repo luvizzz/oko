@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -29,17 +29,17 @@
     .handle:active { cursor: grabbing; background: #fff; }
     #stage.cropping canvas { cursor: crosshair; }
 
-    /* undo/redo flutuam sobre o canvas (M7) */
+    /* undo/redo float over the canvas */
     #float-ur { position: absolute; top: 10px; left: 10px; display: flex; gap: 8px; z-index: 5; }
     #float-ur button { width: 44px; height: 44px; border-radius: 14px; font-size: 19px; background: rgba(35,35,41,.85); backdrop-filter: blur(6px); }
 
-    /* FAB aplicar/cancelar — substitui os botões "aplicar/cancelar" inline (M7) */
+    /* FAB apply/cancel — replaces the inline apply/cancel buttons */
     #fab { position: absolute; right: 14px; bottom: 14px; display: none; flex-direction: column; gap: 12px; z-index: 6; }
     #fab button { width: 56px; height: 56px; border-radius: 50%; font-size: 23px; color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.55); }
     #fab .ok { background: var(--accent); color: #0b1c3a; }
     #fab .no { background: #4a4a56; }
 
-    /* ---- sliders grossos: alvo de toque 44px, bolha de valor (M7) ---- */
+    /* ---- chunky sliders: 44px touch target, value bubble ---- */
     .sld { position: relative; display: flex; align-items: center; gap: 10px; height: 44px; }
     .sld label { font-size: 12px; color: #9a9aa4; width: 62px; flex-shrink: 0; }
     .sld input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; height: 44px; background: transparent; margin: 0; min-width: 120px; }
@@ -97,44 +97,44 @@
       <div class="sld"><label style="color:#ff8a8a">red</label><input type="range" id="sl-r" min="0" max="200" value="100" /><span class="bubble"></span></div>
       <div class="sld"><label style="color:#9dff9d">green</label><input type="range" id="sl-g" min="0" max="200" value="100" /><span class="bubble"></span></div>
       <div class="sld"><label style="color:#8ab4ff">blue</label><input type="range" id="sl-b" min="0" max="200" value="100" /><span class="bubble"></span></div>
-      <div class="p-hint">Apply gain X reset</div>
+      <div class="p-hint">✓ apply gain · ✕ zero the channels</div>
     </div>
 
-    <div class="panel" id="panel-cortar">
+    <div class="panel" id="panel-crop">
       <div class="prow">
         <button id="btn-crop">crop</button>
         <button id="btn-persp" title="adjust 4 corners for perspective">perspective</button>
       </div>
       <div class="prow">
-        <label>L <input type="number" id="inp-w" min="1" /></label>
-        <label>A <input type="number" id="inp-h" min="1" /></label>
+        <label>W <input type="number" id="inp-w" min="1" /></label>
+        <label>H <input type="number" id="inp-h" min="1" /></label>
         <button id="btn-resize">resize</button>
         <button id="btn-reset" title="reset">reset</button>
       </div>
-      <div class="p-hint">cut/perspective: Apply X reset</div>
+      <div class="p-hint">crop/perspective: ✓ apply · ✕ cancel</div>
     </div>
 
-    <div class="panel" id="panel-girar">
+    <div class="panel" id="panel-rotate">
       <div class="prow">
-        <button id="btn-rot-ccw" title="90o Counter-clock wise">⟲90°</button>
-        <button id="btn-rot-cw" title="90o Clock wise">⟳90°</button>
+        <button id="btn-rot-ccw" title="rotate 90° counter-clockwise">⟲90°</button>
+        <button id="btn-rot-cw" title="rotate 90° clockwise">⟳90°</button>
         <button id="btn-flip-x" title="Horizontal flip">↔</button>
         <button id="btn-flip-y" title="Vertical flip">↕</button>
       </div>
       <div class="sld"><label>angle</label><input type="range" id="inp-angle" min="-180" max="180" step="1" value="0" /><span class="bubble"></span></div>
-      <div class="p-hint">slide preview angle · ✓ confirm</div>
+      <div class="p-hint">drag the angle for live preview · ✓ confirms</div>
     </div>
 
     <div class="panel" id="panel-effects">
       <div class="sld"><label>blur</label><input type="range" id="sl-blur" min="1" max="50" value="15" /><span class="bubble"></span></div>
       <div class="sld"><label>sharp</label><input type="range" id="sl-sharp" min="0" max="200" value="100" /><span class="bubble"></span></div>
       <div class="prow">
-        <button id="btn-shape-square" class="shape on" title="square with round corners">corners</button>
+        <button id="btn-shape-square" class="shape on" title="square with rounded corners">corners</button>
         <button id="btn-shape-oval" class="shape" title="oval">oval</button>
         <button id="btn-shape-circle" class="shape" title="circle">circle</button>
       </div>
       <div class="sld"><label>radius</label><input type="range" id="sl-radius" min="0" max="100" value="25" /><span class="bubble"></span></div>
-      <div class="p-hint">✓ apply last changed</div>
+      <div class="p-hint">✓ applies the last touched control</div>
     </div>
 
     <div class="panel" id="panel-save">
@@ -148,8 +148,8 @@
 
   <nav id="dock" class="disabled">
     <button data-panel="adjust"><span class="g">☀</span>adjust</button>
-    <button data-panel="cut"><span class="g">⬚</span>cut</button>
-    <button data-panel="turn"><span class="g">⟳</span>turn</button>
+    <button data-panel="crop"><span class="g">⬚</span>crop</button>
+    <button data-panel="rotate"><span class="g">⟳</span>rotate</button>
     <button data-panel="effects"><span class="g">✦</span>effects</button>
     <button data-panel="save"><span class="g">↓</span>save</button>
   </nav>

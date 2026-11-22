@@ -1,13 +1,13 @@
 /**
- * core/image.ts — tipo fundamental do oko.
- * Regra do projeto: NADA aqui toca DOM. Core é puro e testável em Node.
- * Buffer RGBA 8-bit (D4): dados crus, linha a linha, 4 bytes por pixel.
+ * core/image.ts — the fundamental type of oko.
+ * Project rule: NOTHING here touches the DOM. Core is pure and testable in Node.
+ * 8-bit RGBA buffer: raw data, row by row, 4 bytes per pixel.
  */
 
 export interface ImageBuf {
   readonly width: number;
   readonly height: number;
-  /** RGBA, row-major, 4 bytes por pixel. length === width*height*4 */
+  /** RGBA, row-major, 4 bytes per pixel. length === width*height*4 */
   readonly data: Uint8ClampedArray;
 }
 
@@ -36,8 +36,8 @@ export function fill(img: ImageBuf, r: number, g: number, b: number, a = 255): v
 }
 
 /**
- * Corta linhas/colunas 100% transparentes da borda (rotate e perspective usam:
- * o conteúdo tem que encostar no canvas, nunca "flutuar" em margem transparente).
+ * Trims 100% transparent rows/columns from the border (rotate and perspective
+ * use it: the content must touch the canvas, never "float" in a transparent margin).
  */
 export function trimTransparent(img: ImageBuf): ImageBuf {
   const { width: w, height: h, data } = img;
@@ -52,8 +52,8 @@ export function trimTransparent(img: ImageBuf): ImageBuf {
       }
     }
   }
-  if (x1 < 0) return img; // tudo transparente: nunca fazemos a imagem sumir
-  if (x0 === 0 && y0 === 0 && x1 === w - 1 && y1 === h - 1) return img; // já justo
+  if (x1 < 0) return img; // all transparent: we never let the image disappear
+  if (x0 === 0 && y0 === 0 && x1 === w - 1 && y1 === h - 1) return img; // already tight
   const nw = x1 - x0 + 1;
   const nh = y1 - y0 + 1;
   const out = alloc(nw, nh);
@@ -79,12 +79,12 @@ export function setPixel(img: ImageBuf, x: number, y: number, r: number, g: numb
 
 function assertSize(width: number, height: number): void {
   if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
-    throw new RangeError(`tamanho inválido: ${width}x${height}`);
+    throw new RangeError(`invalid size: ${width}x${height}`);
   }
 }
 
 function checkBounds(img: ImageBuf, x: number, y: number): void {
   if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= img.width || y >= img.height) {
-    throw new RangeError(`pixel fora dos limites: (${x},${y}) em ${img.width}x${img.height}`);
+    throw new RangeError(`pixel out of bounds: (${x},${y}) in ${img.width}x${img.height}`);
   }
 }

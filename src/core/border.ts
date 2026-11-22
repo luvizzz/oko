@@ -1,12 +1,12 @@
 /**
- * core/border.ts — M4: máscara de borda. Fora da forma → alfa 0; na transição,
- * cobertura anti-aliased por signed distance (0.5px de rampa) multiplicando o
- * alfa existente (nunca destrói transparência anterior da perspectiva/rotação).
+ * core/border.ts — border mask. Outside the shape → alpha 0; at the transition,
+ * anti-aliased coverage via signed distance (0.5px ramp) multiplying the
+ * existing alpha (never destroys prior transparency from perspective/rotation).
  *
  * shapes:
- *  - "square": retângulo com cantos arredondados por `radius` (px)
- *  - "oval":   elipse inscrita nas dimensões da imagem
- *  - "circle": círculo central inscrito (min(w,h))
+ *  - "square": rectangle with rounded corners by `radius` (px)
+ *  - "oval":   ellipse inscribed in the image dimensions
+ *  - "circle": central inscribed circle (min(w,h))
  */
 import { type ImageBuf } from "./image";
 
@@ -22,13 +22,13 @@ export function border(img: ImageBuf, shape: BorderShape, radius: number): Image
 
   let rx = 0;
   if (shape === "square") {
-    if (!Number.isFinite(radius) || radius < 0) throw new RangeError(`raio inválido: ${radius}`);
-    rx = Math.min(radius, Math.min(halfW, halfH)); // cantos "arredondados" até o limite
+    if (!Number.isFinite(radius) || radius < 0) throw new RangeError(`invalid radius: ${radius}`);
+    rx = Math.min(radius, Math.min(halfW, halfH)); // "rounded" corners up to the limit
   }
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      let sd: number; // distância assinada: <0 dentro, >0 fora, em px
+      let sd: number; // signed distance: <0 inside, >0 outside, in px
       if (shape === "square") {
         const dx = Math.abs(x - cx) - (halfW - rx);
         const dy = Math.abs(y - cy) - (halfH - rx);
@@ -39,13 +39,13 @@ export function border(img: ImageBuf, shape: BorderShape, radius: number): Image
         const u = (x - cx) / halfW;
         const v = (y - cy) / halfH;
         const rNorm = Math.hypot(u / 1, v / 1);
-        // aproximação de distância p/ AA: escala pelo semi-eixo menor
+        // distance approximation for AA: scale by the smaller semi-axis
         sd = (rNorm - 1) * Math.min(halfW, halfH);
       } else {
         const rad = Math.min(halfW, halfH) - 0.5;
         sd = Math.hypot(x - cx, y - cy) - rad;
       }
-      const coverage = Math.min(Math.max(0.5 - sd, 0), 1); // rampa AA de 1px
+      const coverage = Math.min(Math.max(0.5 - sd, 0), 1); // 1px AA ramp
       if (coverage < 1) {
         const i = (y * w + x) * 4 + 3;
         dst[i] = src[i]! * coverage;

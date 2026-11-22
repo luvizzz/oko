@@ -1,6 +1,6 @@
 /**
- * core/flip.ts — espelho. axis "x": inverte esquerda↔direita (espelho vertical).
- * axis "y": inverte cima↔baixo.
+ * core/flip.ts — mirror. axis "x": swaps left↔right (vertical mirror).
+ * axis "y": swaps top↔bottom.
  */
 import { alloc, type ImageBuf } from "./image";
 

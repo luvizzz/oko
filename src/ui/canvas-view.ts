@@ -1,11 +1,11 @@
 /**
- * ui/canvas-view.ts — exibe um ImageBuf no <canvas> da página.
- * putImageData é blit 1:1; o tamanho EXIBIDO (CSS) é calculado aqui em JS,
- * nunca por max-width/max-height em %: em altura isso não resolve (o wrap tem
- * altura auto) e a imagem transbordava o stage — alças de perspectiva e
- * seleção de crop "flutuavam" fora do canvas visível. JS mantém o canvas
- * sempre contido no stage e o #wrap colado nele, então coordenadas de
- * overlay (getBoundingClientRect) batem pixel a pixel com a imagem.
+ * ui/canvas-view.ts — displays an ImageBuf on the page's <canvas>.
+ * putImageData is a 1:1 blit; the DISPLAYED size (CSS) is computed here in JS,
+ * never via % max-width/max-height: that doesn't work for height (the wrap has
+ * auto height) and the image overflowed the stage — perspective handles and
+ * the crop selection "floated" outside the visible canvas. JS keeps the canvas
+ * always contained in the stage with #wrap glued to it, so overlay coordinates
+ * (getBoundingClientRect) line up pixel-perfect with the image.
  */
 import type { ImageBuf } from "../core/image";
 
@@ -18,7 +18,7 @@ export class CanvasView {
     private readonly stage: HTMLElement,
   ) {
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("canvas 2d indisponível");
+    if (!ctx) throw new Error("canvas 2d unavailable");
     this.ctx = ctx;
   }
 
@@ -30,7 +30,7 @@ export class CanvasView {
     this.fit();
   }
 
-  /** escala de exibição: contém a imagem no stage sem upscale além de 1:1 */
+  /** display scale: fits the image in the stage without upscaling beyond 1:1 */
   fit(): void {
     if (!this.last) return;
     const { width: w, height: h } = this.last;

@@ -1,7 +1,7 @@
 /**
- * ui/session.ts — persistência de sessão (D9) em IndexedDB:
- * guardamos o ARQUIVO ORIGINAL + a lista de ops; ao reabrir, reaplica o pipeline.
- * IndexedDB pois é o único storage de MB→GB presente em todo browser-alvo (Safari/iOS incluído).
+ * ui/session.ts — session persistence in IndexedDB:
+ * we store the ORIGINAL FILE + the list of ops; on reopen, the pipeline is reapplied.
+ * IndexedDB because it's the only MB→GB-sized storage present in every target browser (Safari/iOS included).
  */
 import type { Op } from "../core/pipeline";
 
@@ -9,7 +9,7 @@ export interface Session {
   filename: string;
   savedAt: number;
   ops: Op[];
-  image: Blob; // o File original — blob é clonado estruturalmente pelo IDB
+  image: Blob; // the original File — the blob is structurally cloned by IDB
 }
 
 const DB_NAME = "oko";

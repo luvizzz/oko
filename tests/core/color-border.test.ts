@@ -19,62 +19,62 @@ function fill(img: ReturnType<typeof alloc>, r: number, g: number, b: number, a:
 }
 
 describe("core/color", () => {
-  it("ganho 1 = identidade", () => {
+  it("gain 1 = identity", () => {
     expect(colorGain(base(), 1, 1, 1).data).toEqual(base().data);
   });
 
-  it("canais são independentes: só o vermelho muda", () => {
+  it("channels are independent: only red changes", () => {
     const out = colorGain(base(), 0.5, 1, 1);
     expect(getPixel(out, 2, 2)).toEqual([50, 150, 200, 255]);
   });
 
-  it("ganho 0 zera o canal; ganho 2 satura no clamp", () => {
+  it("gain 0 zeroes the channel; gain 2 saturates at the clamp", () => {
     expect(getPixel(colorGain(base(), 0, 1, 1), 1, 1)).toEqual([0, 150, 200, 255]);
     expect(getPixel(colorGain(base(), 2, 2, 2), 1, 1)).toEqual([200, 255, 255, 255]);
   });
 
-  it("alfa nunca é tocado", () => {
+  it("alpha is never touched", () => {
     const img = alloc(2, 2);
     setPixel(img, 0, 0, 100, 100, 100, 128);
     expect(getPixel(colorGain(img, 3, 3, 3), 0, 0)[3]).toBe(128);
   });
 
-  it("ganho inválido falha", () => {
+  it("invalid gain fails", () => {
     expect(() => colorGain(base(), -1, 1, 1)).toThrow(RangeError);
     expect(() => colorGain(base(), NaN, 1, 1)).toThrow(RangeError);
   });
 });
 
 describe("core/border", () => {
-  it("quadrada raio 0 = intacta; raio > 0 recorta só os cantos", () => {
+  it("square radius 0 = intact; radius > 0 trims only the corners", () => {
     const img = alloc(100, 100);
     fill(img, 10, 20, 30, 255);
     expect(border(img, "square", 0).data).toEqual(img.data);
     const out = border(img, "square", 20);
-    expect(getPixel(out, 0, 0)[3]).toBe(0); // canto cortado
-    expect(getPixel(out, 50, 0)[3]).toBe(255); // meio do lado intacto
+    expect(getPixel(out, 0, 0)[3]).toBe(0); // corner cut off
+    expect(getPixel(out, 50, 0)[3]).toBe(255); // middle of the side intact
     expect(getPixel(out, 50, 50)[3]).toBe(255);
-    expect(getPixel(out, 25, 0)[3]).toBe(255); // longe o bastante do raio
+    expect(getPixel(out, 25, 0)[3]).toBe(255); // far enough from the radius
   });
 
-  it("oval: centro intacto, cantos zero, meio dos lados existe", () => {
+  it("oval: center intact, corners zero, middle of the sides exists", () => {
     const out = border(alloc100(), "oval", 0);
     expect(getPixel(out, 50, 50)[3]).toBe(255);
     expect(getPixel(out, 0, 0)[3]).toBe(0);
-    expect(getPixel(out, 50, 1)[3]).toBeGreaterThan(0); // topo, centro do lado
+    expect(getPixel(out, 50, 1)[3]).toBeGreaterThan(0); // top, middle of the side
     expect(getPixel(out, 1, 50)[3]).toBeGreaterThan(0);
   });
 
-  it("círculo: corta o canto E o meio do lado longo em imagem não-quadrada", () => {
+  it("circle: cuts the corner AND the middle of the long side on a non-square image", () => {
     const img = alloc(100, 60);
     fill(img, 10, 20, 30, 255);
     const out = border(img, "circle", 0);
-    expect(getPixel(out, 50, 30)[3]).toBe(255); // centro
-    expect(getPixel(out, 99, 30)[3]).toBe(0); // meio do lado direito: fora do círculo
+    expect(getPixel(out, 50, 30)[3]).toBe(255); // center
+    expect(getPixel(out, 99, 30)[3]).toBe(0); // middle of the right side: outside the circle
     expect(getPixel(out, 0, 0)[3]).toBe(0);
   });
 
-  it("transparência anterior é preservada (multiplica alfa)", () => {
+  it("existing transparency is preserved (multiplies alpha)", () => {
     const img = alloc(20, 20);
     fill(img, 10, 10, 10, 128);
     const out = border(img, "circle", 0);

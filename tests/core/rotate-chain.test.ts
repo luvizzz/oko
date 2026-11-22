@@ -19,18 +19,18 @@ function opaqueArea(img: ImageBuf): number {
   return n;
 }
 
-describe("rotações encadeadas voltam ao original (bug relatado)", () => {
+describe("chained rotations return to the original (reported bug)", () => {
   for (const seq of [[15, 15, -30], [-15, -15, 30]] as const) {
-    it(`${seq.join(", ")}° preserva a imagem e volta ao tamanho`, () => {
+    it(`${seq.join(", ")}° preserves the image and returns to the original size`, () => {
       let img = solid(101, 61);
       for (const deg of seq) img = rotateZ(img, deg);
       const area = opaqueArea(img);
-      expect(area).toBeGreaterThan(6161 * 0.9); // conteúdo preservado
-      // rotação líquida 0°: margens aparadas -> canvas ~original.
-      // tolerância ±5px: cada resampling estende a borda ~1px (edge extension), esperado.
+      expect(area).toBeGreaterThan(6161 * 0.9); // content preserved
+      // net rotation 0°: trimmed margins -> canvas ~original.
+      // ±5px tolerance: each resampling extends the edge ~1px (edge extension), expected.
       expect(Math.abs(img.width - 101)).toBeLessThanOrEqual(5);
       expect(Math.abs(img.height - 61)).toBeLessThanOrEqual(5);
-      console.log(`seq ${seq}: canvas final ${img.width}x${img.height}, opacos=${area}`);
+      console.log(`seq ${seq}: final canvas ${img.width}x${img.height}, opaque=${area}`);
     });
   }
 });
