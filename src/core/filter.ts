@@ -60,12 +60,27 @@ function convolve1D(
   }
 }
 
+/**
+ * Scratch reutilizável: gaussianBlur era chamado a cada frame de slider e
+ * alocava 2 Float32Array (8 bytes/pixel) por chamada — o GC dominava o custo
+ * (a medida mal mudava com sigma). Buffers de módulo crescem até o necessário
+ * e nunca encolhem; convolve1D só lê/creve os primeiros width*height*4 slots.
+ */
+let scratchA: Float32Array | null = null;
+let scratchB: Float32Array | null = null;
+function scratchPair(n: number): [Float32Array, Float32Array] {
+  if (!scratchA || !scratchB || scratchA.length < n) {
+    scratchA = new Float32Array(n);
+    scratchB = new Float32Array(n);
+  }
+  return [scratchA, scratchB];
+}
+
 export function gaussianBlur(img: ImageBuf, sigma: number): ImageBuf {
   const { radius, w } = gaussianKernel(sigma);
   const n = img.width * img.height * 4;
-  const f = new Float32Array(n);
+  const [f, g] = scratchPair(n);
   for (let i = 0; i < n; i++) f[i] = img.data[i]!;
-  const g = new Float32Array(n);
   convolve1D(f, g, img.width, img.height, w, radius, true); // horizontal
   convolve1D(g, f, img.width, img.height, w, radius, false); // vertical
   const out: ImageBuf = { width: img.width, height: img.height, data: new Uint8ClampedArray(n) };

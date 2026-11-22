@@ -1,5 +1,6 @@
 import { type ImageBuf } from "./core/image";
-import { runPipeline, type Op } from "./core/pipeline";
+import { PipelineCache, scaleOp, type Op } from "./core/pipeline";
+import { lanczosResize } from "./core/resize";
 import { History } from "./core/history";
 import { CanvasView } from "./ui/canvas-view";
 import { downloadBlob, bufToBlob, loadImageFile } from "./ui/io";
@@ -45,18 +46,53 @@ const history = new History(); // ops vivem no MESMO array da sessão (referênc
 /** Op temporária dos sliders (preview ao vivo); só vira sessão no "aplicar". */
 let previewOp: Op | null = null;
 
+/* ---- perf (M6) ----
+ * fullCache: cache de prefixo do pipeline — o preview de slider custa só a op
+ * do slider (o resto dos estágios já está calculado), e addOp valida de graça.
+ * Proxy: enquanto o dedo está no slider, a pipeline roda sobre uma cópia
+ * reduzida da original (ops reescalonadas via scaleOp) — ~3x menos pixels.
+ * Ao soltar ('change'), renderiza a resolução cheia de novo. */
+const fullCache = new PipelineCache();
+const proxyCache = new PipelineCache();
+let proxyBase: ImageBuf | null = null;
+const PROXY_MAX_DIM = 900;
+let livePreview = false;
+// marcador de build p/ E2E: confirma que o browser roda o bundle esperado
+(window as unknown as { __okoBuild: string }).__okoBuild = "perf-proxy-1";
+
 function displayBuf(): ImageBuf | null {
   if (!original || !session) return null;
-  return runPipeline(original, previewOp ? [...history.ops, previewOp] : history.ops);
+  return fullCache.run(original, previewOp ? [...history.ops, previewOp] : history.ops);
+}
+
+function previewBuf(): ImageBuf | null {
+  if (!original || !session) return null;
+  const f = Math.min(1, PROXY_MAX_DIM / Math.max(original.width, original.height));
+  if (f >= 1) return displayBuf(); // imagem pequena: proxy não compensa
+  if (!proxyBase) {
+    proxyBase = lanczosResize(original, Math.round(original.width * f), Math.round(original.height * f));
+  }
+  const ops = (previewOp ? [...history.ops, previewOp] : history.ops).map((op) => scaleOp(op, f));
+  return proxyCache.run(proxyBase, ops);
+}
+
+function resetPreviewState(): void {
+  proxyBase = null;
+  proxyCache.invalidate();
+  livePreview = false;
 }
 
 function render(label?: string): void {
-  const buf = displayBuf();
-  if (!buf || !session) return;
+  if (!original || !session) return;
+  const buf = livePreview ? previewBuf() : displayBuf();
+  if (!buf) return;
   view.render(buf);
-  inpW.value = String(buf.width);
-  inpH.value = String(buf.height);
-  status.textContent = label ?? `${session.filename} — ${buf.width}×${buf.height} · ${history.ops.length} edição(ões)`;
+  // dimensões nos inputs/são SEMPRE as da resolução cheia: o proxy tem outra
+  // escala e previewOps nunca mudam dimensões (resize/crop não têm preview)
+  const dims = livePreview ? fullCache.run(original, history.ops) : buf;
+  inpW.value = String(dims.width);
+  inpH.value = String(dims.height);
+  status.textContent = label ?? `${session.filename} — ${dims.width}×${dims.height} · ${history.ops.length} edição(ões)`;
   $<HTMLButtonElement>("btn-undo").disabled = !history.canUndo;
   $<HTMLButtonElement>("btn-redo").disabled = !history.canRedo;
 }
@@ -66,7 +102,8 @@ async function addOp(op: Op): Promise<void> {
   if (!original || !session) return;
   previewOp = null;
   try {
-    runPipeline(original, [...history.ops, op]);
+    // validação incremental: o prefixo já está no cache; só a op nova executa
+    fullCache.run(original, [...history.ops, op]);
   } catch (err) {
     status.textContent = `erro: ${err instanceof Error ? err.message : err}`;
     return;
@@ -90,6 +127,7 @@ async function openImage(file: File): Promise<void> {
     original = await loadImageFile(file);
     session = { filename: file.name, savedAt: Date.now(), ops: [], image: file };
     history.load(session.ops);
+    resetPreviewState();
     setToolsEnabled(true);
     render(`${file.name} — carregada`);
     await saveSession(session);
@@ -176,6 +214,22 @@ function previewRender(): void {
   });
 }
 
+/**
+ * 'input' (dedo arrastando) renderiza no proxy de baixa resolução;
+ * 'change' (dedo soltou) volta para a resolução cheia — o usuário sempre
+ * termina o gesto vendo o resultado real.
+ */
+function bindLivePreview(el: HTMLInputElement, update: () => void): void {
+  el.addEventListener("input", () => {
+    livePreview = true;
+    update();
+  });
+  el.addEventListener("change", () => {
+    livePreview = false;
+    render();
+  });
+}
+
 function colorPreview(): void {
   previewOp = {
     type: "colorGain",
@@ -185,7 +239,7 @@ function colorPreview(): void {
   };
   previewRender();
 }
-for (const el of [slR, slG, slB]) el.addEventListener("input", colorPreview);
+for (const el of [slR, slG, slB]) bindLivePreview(el, colorPreview);
 
 $<HTMLButtonElement>("btn-color").addEventListener("click", () => {
   const op: Op = {
@@ -224,7 +278,7 @@ for (const [shape, btn] of Object.entries(shapeBtns)) {
     borderPreview();
   });
 }
-slRadius.addEventListener("input", borderPreview);
+bindLivePreview(slRadius, borderPreview);
 
 $<HTMLButtonElement>("btn-border").addEventListener("click", () => {
   const op: Op = { type: "border", shape: shapeSel, radius: shapeSel === "square" ? radiusPx() : 0 };
@@ -235,7 +289,7 @@ $<HTMLButtonElement>("btn-border").addEventListener("click", () => {
 const slBlur = $input("sl-blur");
 const slSharp = $input("sl-sharp");
 
-slBlur.addEventListener("input", () => {
+bindLivePreview(slBlur, () => {
   previewOp = { type: "blur", sigma: Number(slBlur.value) / 10 };
   previewRender();
 });
@@ -243,7 +297,7 @@ $<HTMLButtonElement>("btn-blur").addEventListener("click", () => {
   void addOp({ type: "blur", sigma: Number(slBlur.value) / 10 });
 });
 
-slSharp.addEventListener("input", () => {
+bindLivePreview(slSharp, () => {
   previewOp = { type: "sharpen", amount: Number(slSharp.value) / 100, sigma: 1 };
   previewRender();
 });
@@ -430,6 +484,7 @@ loadSession()
     session = saved;
     history.load(saved.ops);
     original = await loadImageFile(new File([saved.image], saved.filename));
+    resetPreviewState();
     setToolsEnabled(true);
     render(`sessão restaurada — ${saved.filename}`);
   })
