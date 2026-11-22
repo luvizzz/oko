@@ -9,6 +9,11 @@ const $input = (id: string) => $<HTMLInputElement>(id);
 
 const fileInput = $input("file");
 const inpAngle = $input("inp-angle");
+const lblAngle = $<HTMLSpanElement>("lbl-angle");
+lblAngle.textContent = inpAngle.value + "°";
+inpAngle.addEventListener("input", () => {
+  lblAngle.textContent = inpAngle.value + "°";
+});
 const inpW = $input("inp-w");
 const inpH = $input("inp-h");
 const status = $<HTMLSpanElement>("status");
