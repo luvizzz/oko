@@ -10,6 +10,8 @@ import { crop } from "./crop";
 import { rotateZ } from "./rotate";
 import { lanczosResize } from "./resize";
 import { perspective, type Quad } from "./perspective";
+import { colorGain } from "./color";
+import { border, type BorderShape } from "./border";
 
 export type Op =
   | { type: "resize"; width: number; height: number } // M2 ✅
@@ -17,8 +19,8 @@ export type Op =
   | { type: "rotateZ"; degrees: number } // M2 ✅
   | { type: "flip"; axis: "x" | "y" } // M2 ✅
   | { type: "perspective"; quad: Quad } // M3 ✅
-  | { type: "colorGain"; r: number; g: number; b: number } // M4
-  | { type: "border"; shape: "square" | "oval" | "circle"; radius: number } // M4
+  | { type: "colorGain"; r: number; g: number; b: number } // M4 ✅
+  | { type: "border"; shape: BorderShape; radius: number } // M4 ✅
   | { type: "__none__" };
 
 export function runPipeline(img: ImageBuf, ops: readonly Op[]): ImageBuf {
@@ -43,8 +45,11 @@ export function runPipeline(img: ImageBuf, ops: readonly Op[]): ImageBuf {
         out = perspective(out, op.quad);
         break;
       case "colorGain":
+        out = colorGain(out, op.r, op.g, op.b);
+        break;
       case "border":
-        throw new Error(`operação '${op.type}' ainda não implementada`);
+        out = border(out, op.shape, op.radius);
+        break;
       default: {
         const t: never = op; // exaustividade: TS quebra quando novo Op entra sem case
         throw new Error(`operação desconhecida: ${JSON.stringify(t)}`);

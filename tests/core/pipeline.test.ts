@@ -13,13 +13,6 @@ describe("core/pipeline", () => {
     expect(runPipeline(img, [{ type: "__none__" }])).toBe(img);
   });
 
-  it("op ainda não implementada (M4) falha explicitamente (nunca silencia)", () => {
-    const img = alloc(2, 2);
-    expect(() => runPipeline(img, [{ type: "colorGain", r: 1, g: 1, b: 1 }])).toThrow(
-      "operação 'colorGain' ainda não implementada",
-    );
-  });
-
   it("encadeia ops M2 de ponta a ponta", () => {
     const img = alloc(4, 2);
     const out = runPipeline(img, [

@@ -26,8 +26,12 @@ const view = new CanvasView(canvas);
 let session: Session | null = null;
 let original: ImageBuf | null = null; // decodificada 1x; ops rodam sobre ela a cada render
 
+/** Op temporária dos sliders (preview ao vivo); só vira sessão no "aplicar". */
+let previewOp: Op | null = null;
+
 function displayBuf(): ImageBuf | null {
-  return original && session ? runPipeline(original, session.ops) : null;
+  if (!original || !session) return null;
+  return runPipeline(original, previewOp ? [...session.ops, previewOp] : session.ops);
 }
 
 function render(label?: string): void {
@@ -42,6 +46,7 @@ function render(label?: string): void {
 /** valida a op rodando o pipeline completo ANTES de persistir (sessão nunca guarda op quebrada) */
 async function addOp(op: Op): Promise<void> {
   if (!original || !session) return;
+  previewOp = null;
   try {
     runPipeline(original, [...session.ops, op]);
   } catch (err) {
@@ -102,10 +107,82 @@ $<HTMLButtonElement>("btn-resize").addEventListener("click", () => {
 });
 $<HTMLButtonElement>("btn-reset").addEventListener("click", async () => {
   if (!session) return;
+  previewOp = null;
   session.ops = [];
   await saveSession(session);
   exitCrop();
   render("edições descartadas");
+});
+
+// ---------- cor + borda com preview (M4) ----------
+const slR = $input("sl-r");
+const slG = $input("sl-g");
+const slB = $input("sl-b");
+const slRadius = $input("sl-radius");
+
+let rafPending = false;
+function previewRender(): void {
+  if (rafPending) return; // 1 render por frame, não por evento de slider
+  rafPending = true;
+  requestAnimationFrame(() => {
+    rafPending = false;
+    render();
+  });
+}
+
+function colorPreview(): void {
+  previewOp = {
+    type: "colorGain",
+    r: Number(slR.value) / 100,
+    g: Number(slG.value) / 100,
+    b: Number(slB.value) / 100,
+  };
+  previewRender();
+}
+for (const el of [slR, slG, slB]) el.addEventListener("input", colorPreview);
+
+$<HTMLButtonElement>("btn-color").addEventListener("click", () => {
+  const op: Op = {
+    type: "colorGain",
+    r: Number(slR.value) / 100,
+    g: Number(slG.value) / 100,
+    b: Number(slB.value) / 100,
+  };
+  slR.value = slG.value = slB.value = "100";
+  void addOp(op);
+});
+
+const shapeBtns: Record<string, HTMLButtonElement> = {
+  square: $<HTMLButtonElement>("btn-shape-square"),
+  oval: $<HTMLButtonElement>("btn-shape-oval"),
+  circle: $<HTMLButtonElement>("btn-shape-circle"),
+};
+let shapeSel: "square" | "oval" | "circle" = "square";
+
+function radiusPx(): number {
+  const buf = displayBuf();
+  if (!buf) return 0;
+  return (Number(slRadius.value) / 100) * (Math.min(buf.width, buf.height) / 2);
+}
+
+function borderPreview(): void {
+  previewOp = { type: "border", shape: shapeSel, radius: shapeSel === "square" ? radiusPx() : 0 };
+  previewRender();
+}
+
+for (const [shape, btn] of Object.entries(shapeBtns)) {
+  btn.addEventListener("click", () => {
+    shapeSel = shape as "square" | "oval" | "circle";
+    for (const [s, b] of Object.entries(shapeBtns)) b.classList.toggle("on", s === shapeSel);
+    slRadius.disabled = shapeSel !== "square";
+    borderPreview();
+  });
+}
+slRadius.addEventListener("input", borderPreview);
+
+$<HTMLButtonElement>("btn-border").addEventListener("click", () => {
+  const op: Op = { type: "border", shape: shapeSel, radius: shapeSel === "square" ? radiusPx() : 0 };
+  void addOp(op);
 });
 
 // ---------- crop interativo ----------

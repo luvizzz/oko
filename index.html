@@ -26,6 +26,10 @@
     #handles { display: none; }
     .handle { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #7db2ff; border: 2px solid #fff; transform: translate(-50%, -50%); cursor: grab; touch-action: none; box-shadow: 0 1px 6px rgba(0,0,0,.6); }
     .handle:active { cursor: grabbing; background: #fff; }
+    .ch { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+    .ch input[type="range"] { width: 64px; accent-color: #7db2ff; }
+    #sl-radius:disabled { opacity: .3; }
+    .shape.on { outline: 1px solid #7db2ff; color: #fff; }
     #stage.cropping canvas { cursor: crosshair; }
     #status { font-size: 12px; color: #9a9aa4; }
     #tools { display: flex; align-items: center; gap: 8px; padding: 8px calc(16px + env(safe-area-inset-right)) 8px calc(16px + env(safe-area-inset-left)); background: #1e1e23; border-bottom: 1px solid #333; flex-wrap: wrap; }
@@ -65,6 +69,17 @@
     <button id="btn-persp" title="puxe os 4 cantos para dar perspectiva">perspectiva</button>
     <button id="btn-persp-apply" style="display:none">aplicar</button>
     <button id="btn-persp-cancel" style="display:none">cancelar</button>
+    <span class="sep"></span>
+    <label class="ch" style="color:#ff8a8a">R<input type="range" id="sl-r" min="0" max="200" value="100"></label>
+    <label class="ch" style="color:#9dff9d">G<input type="range" id="sl-g" min="0" max="200" value="100"></label>
+    <label class="ch" style="color:#8ab4ff">B<input type="range" id="sl-b" min="0" max="200" value="100"></label>
+    <button id="btn-color">aplicar cor</button>
+    <span class="sep"></span>
+    <button id="btn-shape-square" class="shape on" title="retângulo com cantos arredondados">cantos</button>
+    <button id="btn-shape-oval" class="shape" title="elipse">oval</button>
+    <button id="btn-shape-circle" class="shape" title="círculo">círculo</button>
+    <label class="ch">raio<input type="range" id="sl-radius" min="0" max="100" value="25"></label>
+    <button id="btn-border">aplicar borda</button>
     <span class="sep"></span>
     <button id="btn-reset" title="descartar edições, volta ao original">redefinir</button>
   </div>
