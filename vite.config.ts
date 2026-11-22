@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  base: "/oko/", // servido em subpath (tailscale serve /oko); dev também cai em /oko/
   server: {
     host: "0.0.0.0",
     port: 5173,
