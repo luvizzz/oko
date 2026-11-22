@@ -1,0 +1,14 @@
+{
+  "name": "oko",
+  "short_name": "oko",
+  "description": "Editor de imagens com algoritmos escritos à mão",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1a1e",
+  "theme_color": "#1a1a1e",
+  "icons": [
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
