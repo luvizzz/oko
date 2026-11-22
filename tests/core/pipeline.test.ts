@@ -13,11 +13,23 @@ describe("core/pipeline", () => {
     expect(runPipeline(img, [{ type: "__none__" }])).toBe(img);
   });
 
-  it("op ainda não implementada falha explicitamente (nunca silencia)", () => {
+  it("op ainda não implementada (M3/M4) falha explicitamente (nunca silencia)", () => {
     const img = alloc(2, 2);
-    expect(() => runPipeline(img, [{ type: "crop", x: 0, y: 0, width: 1, height: 1 }])).toThrow(
-      "operação 'crop' ainda não implementada",
+    expect(() => runPipeline(img, [{ type: "perspective", corners: [0, 0, 1, 1] }])).toThrow(
+      "operação 'perspective' ainda não implementada",
     );
+  });
+
+  it("encadeia ops M2 de ponta a ponta", () => {
+    const img = alloc(4, 2);
+    const out = runPipeline(img, [
+      { type: "crop", x: 0, y: 0, width: 4, height: 2 },
+      { type: "rotateZ", degrees: 90 },
+      { type: "flip", axis: "x" },
+      { type: "resize", width: 2, height: 2 },
+    ]);
+    expect(out.width).toBe(2);
+    expect(out.height).toBe(2);
   });
 
   it("op desconhecida (dado corrompido na sessão salva) falha explicitamente", () => {

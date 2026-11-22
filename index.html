@@ -14,8 +14,16 @@
     button:disabled { opacity: 0.4; cursor: default; }
     button:hover:not(:disabled) { background: #4a4a56; }
     #stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 16px; }
-    #stage canvas { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 24px rgba(0,0,0,.5); background: #000; }
+    #wrap { position: relative; line-height: 0; }
+    #wrap canvas { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 24px rgba(0,0,0,.5); background: #000; }
+    #sel { position: absolute; border: 1px dashed #7db2ff; background: rgba(125,178,255,.18); display: none; pointer-events: none; }
+    #stage.cropping canvas { cursor: crosshair; }
     #status { font-size: 12px; color: #9a9aa4; }
+    #tools { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #1e1e23; border-bottom: 1px solid #333; flex-wrap: wrap; }
+    #tools:disabled, #tools.disabled { opacity: 0.35; pointer-events: none; }
+    #tools .sep { width: 1px; height: 20px; background: #3a3a44; margin: 0 4px; }
+    #tools label { font-size: 12px; color: #9a9aa4; }
+    #tools input[type="number"] { width: 64px; background: #2a2a31; color: #e8e8ea; border: 1px solid #3a3a44; border-radius: 4px; padding: 4px 6px; font-size: 13px; }
     input[type="file"] { display: none; }
   </style>
 </head>
@@ -28,7 +36,26 @@
     <div class="spacer"></div>
     <button id="btn-export" disabled>Exportar PNG</button>
   </header>
-  <div id="stage"><canvas id="canvas" width="0" height="0"></canvas></div>
+  <div id="tools" class="disabled">
+    <button id="btn-flip-x" title="espelho horizontal">↔</button>
+    <button id="btn-flip-y" title="espelho vertical">↕</button>
+    <span class="sep"></span>
+    <button id="btn-rot-ccw" title="girar 90° anti-horário">⟲90°</button>
+    <button id="btn-rot-cw" title="girar 90° horário">⟳90°</button>
+    <label>ângulo <input type="number" id="inp-angle" step="0.1" min="-359.9" max="359.9" value="15" /></label>
+    <button id="btn-rot-free">girar</button>
+    <span class="sep"></span>
+    <label>L <input type="number" id="inp-w" min="1" /></label>
+    <label>A <input type="number" id="inp-h" min="1" /></label>
+    <button id="btn-resize">redimensionar</button>
+    <span class="sep"></span>
+    <button id="btn-crop">recortar</button>
+    <button id="btn-crop-apply" style="display:none">aplicar</button>
+    <button id="btn-crop-cancel" style="display:none">cancelar</button>
+    <span class="sep"></span>
+    <button id="btn-reset" title="descartar edições, volta ao original">redefinir</button>
+  </div>
+  <div id="stage"><div id="wrap"><canvas id="canvas" width="0" height="0"></canvas><div id="sel"></div></div></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
