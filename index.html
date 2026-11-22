@@ -10,90 +10,152 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <title>oko</title>
   <style>
-    :root { color-scheme: dark; }
+    :root { color-scheme: dark; --accent:#7db2ff; }
     body { margin: 0; font-family: system-ui, sans-serif; background: #1a1a1e; color: #e8e8ea; display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
     header { display: flex; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 10px calc(16px + env(safe-area-inset-left)); background: #232329; border-bottom: 1px solid #333; }
     header h1 { font-size: 15px; margin: 0; letter-spacing: 2px; text-transform: lowercase; }
-    header .spacer { flex: 1; }
-    button { background: #3a3a44; color: #e8e8ea; border: 0; border-radius: 6px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+    #status { font-size: 12px; color: #9a9aa4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    button { background: #3a3a44; color: #e8e8ea; border: 0; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
     button:disabled { opacity: 0.4; cursor: default; }
     button:hover:not(:disabled) { background: #4a4a56; }
-    #stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+
+    #stage { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 12px 16px; }
     #wrap { position: relative; line-height: 0; }
     #wrap canvas { box-shadow: 0 4px 24px rgba(0,0,0,.5); background: #000; touch-action: none; user-select: none; -webkit-user-select: none; display: block; }
     #sel { position: absolute; border: 1px dashed #7db2ff; background: rgba(125,178,255,.18); display: none; pointer-events: none; }
     #quadsvg { position: absolute; inset: 0; pointer-events: none; display: none; overflow: visible; }
     #handles { display: none; }
-    .handle { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #7db2ff; border: 2px solid #fff; transform: translate(-50%, -50%); cursor: grab; touch-action: none; box-shadow: 0 1px 6px rgba(0,0,0,.6); }
+    .handle { position: absolute; width: 28px; height: 28px; border-radius: 50%; background: #7db2ff; border: 2px solid #fff; transform: translate(-50%, -50%); cursor: grab; touch-action: none; box-shadow: 0 1px 6px rgba(0,0,0,.6); }
     .handle:active { cursor: grabbing; background: #fff; }
-    .ch { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
-    .ch input[type="range"] { width: 64px; accent-color: #7db2ff; }
-    #sl-radius:disabled { opacity: .3; }
-    .shape.on { outline: 1px solid #7db2ff; color: #fff; }
     #stage.cropping canvas { cursor: crosshair; }
-    #status { font-size: 12px; color: #9a9aa4; }
-    #tools { display: flex; align-items: center; gap: 8px; padding: 8px calc(16px + env(safe-area-inset-right)) 8px calc(16px + env(safe-area-inset-left)); background: #1e1e23; border-bottom: 1px solid #333; flex-wrap: wrap; }
-    #tools:disabled, #tools.disabled { opacity: 0.35; pointer-events: none; }
-    #tools .sep { width: 1px; height: 20px; background: #3a3a44; margin: 0 4px; }
-    #tools label { font-size: 12px; color: #9a9aa4; }
-    #tools input[type="number"] { width: 64px; background: #2a2a31; color: #e8e8ea; border: 1px solid #3a3a44; border-radius: 4px; padding: 4px 6px; font-size: 13px; }
+
+    /* undo/redo flutuam sobre o canvas (M7) */
+    #float-ur { position: absolute; top: 10px; left: 10px; display: flex; gap: 8px; z-index: 5; }
+    #float-ur button { width: 44px; height: 44px; border-radius: 14px; font-size: 19px; background: rgba(35,35,41,.85); backdrop-filter: blur(6px); }
+
+    /* FAB aplicar/cancelar — substitui os botões "aplicar/cancelar" inline (M7) */
+    #fab { position: absolute; right: 14px; bottom: 14px; display: none; flex-direction: column; gap: 12px; z-index: 6; }
+    #fab button { width: 56px; height: 56px; border-radius: 50%; font-size: 23px; color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.55); }
+    #fab .ok { background: var(--accent); color: #0b1c3a; }
+    #fab .no { background: #4a4a56; }
+
+    /* ---- sliders grossos: alvo de toque 44px, bolha de valor (M7) ---- */
+    .sld { position: relative; display: flex; align-items: center; gap: 10px; height: 44px; }
+    .sld label { font-size: 12px; color: #9a9aa4; width: 62px; flex-shrink: 0; }
+    .sld input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; height: 44px; background: transparent; margin: 0; min-width: 120px; }
+    .sld input[type="range"]:disabled { opacity: .3; }
+    .sld input[type="range"]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--accent) var(--fill, 50%), #33333c var(--fill, 50%)); }
+    .sld input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 34px; height: 34px; border-radius: 50%; background: #fff; border: 0; margin-top: -13px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+    .sld input[type="range"]::-moz-range-track { height: 8px; border-radius: 4px; background: #33333c; }
+    .sld input[type="range"]::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--accent); }
+    .sld input[type="range"]::-moz-range-thumb { width: 34px; height: 34px; border-radius: 50%; background: #fff; border: 0; }
+    .sld .bubble { position: absolute; bottom: 42px; transform: translateX(-50%); background: #fff; color: #111; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 8px; opacity: 0; transition: opacity .15s; pointer-events: none; font-variant-numeric: tabular-nums; }
+    .sld.live .bubble { opacity: 1; }
+
+    .shape.on { outline: 1px solid var(--accent); color: #fff; }
+
+    /* ---- painéis contextuais (M7): um aberto por vez ---- */
+    #panels { background: #232329; border-top: 1px solid #333; }
+    #panels.disabled { opacity: 0.35; pointer-events: none; }
+    #panels .panel { display: none; flex-direction: column; gap: 6px; padding: 10px calc(16px + env(safe-area-inset-right)) 10px calc(16px + env(safe-area-inset-left)); max-height: 40dvh; overflow-y: auto; }
+    #panels .panel.open { display: flex; }
+    #panels .prow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    #panels .p-hint { font-size: 11px; color: #9a9aa4; text-align: center; }
+    #panels input[type="number"] { width: 64px; background: #2a2a31; color: #e8e8ea; border: 1px solid #3a3a44; border-radius: 6px; padding: 8px 6px; font-size: 13px; }
+
+    /* ---- dock fixo de 5 ícones (M7) ---- */
+    #dock { display: flex; justify-content: space-evenly; padding: 8px 6px calc(10px + env(safe-area-inset-bottom)); background: #1e1e23; border-top: 1px solid #333; }
+    #dock.disabled { opacity: 0.35; pointer-events: none; }
+    #dock button { background: transparent; border: 0; color: #9a9aa4; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; padding: 4px 8px; border-radius: 12px; min-width: 58px; }
+    #dock button .g { width: 44px; height: 44px; border-radius: 15px; display: grid; place-items: center; font-size: 20px; background: #2b2b33; color: #e8e8ea; }
+    #dock button.on { color: #fff; }
+    #dock button.on .g { background: var(--accent); color: #0b1c3a; }
+
     input[type="file"] { display: none; }
   </style>
 </head>
 <body>
   <header>
     <h1>oko</h1>
-    <input type="file" id="file" accept="image/*" />
-    <button id="btn-open">Abrir imagem</button>
     <span id="status">nenhuma imagem</span>
-    <div class="spacer"></div>
-    <button id="btn-export" disabled>PNG</button>
-    <button id="btn-export-jpg" disabled>JPEG</button>
-    <label class="ch">q<input type="range" id="sl-quality" min="50" max="100" value="85"></label>
-    <span class="sep"></span>
-    <button id="btn-undo" disabled>↩ desfazer</button>
-    <button id="btn-redo" disabled>↪ refazer</button>
+    <input type="file" id="file" accept="image/*" />
+    <button id="btn-open" title="abrir nova imagem">abrir</button>
   </header>
-  <div id="tools" class="disabled">
-    <button id="btn-flip-x" title="espelho horizontal">↔</button>
-    <button id="btn-flip-y" title="espelho vertical">↕</button>
-    <span class="sep"></span>
-    <button id="btn-rot-ccw" title="girar 90° anti-horário">⟲90°</button>
-    <button id="btn-rot-cw" title="girar 90° horário">⟳90°</button>
-    <label>ângulo <input type="range" id="inp-angle" min="-180" max="180" step="1" value="15" style="width:120px" /> <span id="lbl-angle" style="display:inline-block;min-width:3.5em">15°</span></label>
-    <button id="btn-rot-free">girar</button>
-    <span class="sep"></span>
-    <label>L <input type="number" id="inp-w" min="1" /></label>
-    <label>A <input type="number" id="inp-h" min="1" /></label>
-    <button id="btn-resize">redimensionar</button>
-    <span class="sep"></span>
-    <button id="btn-crop">recortar</button>
-    <button id="btn-crop-apply" style="display:none">aplicar</button>
-    <button id="btn-crop-cancel" style="display:none">cancelar</button>
-    <span class="sep"></span>
-    <button id="btn-persp" title="puxe os 4 cantos para dar perspectiva">perspectiva</button>
-    <button id="btn-persp-apply" style="display:none">aplicar</button>
-    <button id="btn-persp-cancel" style="display:none">cancelar</button>
-    <span class="sep"></span>
-    <label class="ch" style="color:#ff8a8a">R<input type="range" id="sl-r" min="0" max="200" value="100"></label>
-    <label class="ch" style="color:#9dff9d">G<input type="range" id="sl-g" min="0" max="200" value="100"></label>
-    <label class="ch" style="color:#8ab4ff">B<input type="range" id="sl-b" min="0" max="200" value="100"></label>
-    <button id="btn-color">aplicar cor</button>
-    <span class="sep"></span>
-    <button id="btn-shape-square" class="shape on" title="retângulo com cantos arredondados">cantos</button>
-    <button id="btn-shape-oval" class="shape" title="elipse">oval</button>
-    <button id="btn-shape-circle" class="shape" title="círculo">círculo</button>
-    <label class="ch">raio<input type="range" id="sl-radius" min="0" max="100" value="25"></label>
-    <button id="btn-border">aplicar borda</button>
-    <span class="sep"></span>
-    <label class="ch">desfoque<input type="range" id="sl-blur" min="1" max="50" value="15"></label>
-    <button id="btn-blur" title="borrão gaussiano">desfoque</button>
-    <label class="ch">nitidez<input type="range" id="sl-sharp" min="0" max="200" value="100"></label>
-    <button id="btn-sharp" title="unsharp mask">nitidez</button>
-    <span class="sep"></span>
-    <button id="btn-reset" title="descartar edições, volta ao original">redefinir</button>
+
+  <div id="stage">
+    <div id="wrap"><canvas id="canvas" width="0" height="0"></canvas><div id="sel"></div><svg id="quadsvg"><polygon points="" fill="rgba(125,178,255,.12)" stroke="#7db2ff" stroke-width="1.5" stroke-dasharray="4 3"/></svg><div id="handles"><i class="handle" data-i="0"></i><i class="handle" data-i="1"></i><i class="handle" data-i="2"></i><i class="handle" data-i="3"></i></div></div>
+    <div id="float-ur">
+      <button id="btn-undo" title="desfazer" disabled>↩</button>
+      <button id="btn-redo" title="refazer" disabled>↪</button>
+    </div>
+    <div id="fab">
+      <button id="fab-cancel" class="no" title="cancelar">✕</button>
+      <button id="fab-apply" class="ok" title="aplicar">✓</button>
+    </div>
   </div>
-  <div id="stage"><div id="wrap"><canvas id="canvas" width="0" height="0"></canvas><div id="sel"></div><svg id="quadsvg"><polygon points="" fill="rgba(125,178,255,.12)" stroke="#7db2ff" stroke-width="1.5" stroke-dasharray="4 3"/></svg><div id="handles"><i class="handle" data-i="0"></i><i class="handle" data-i="1"></i><i class="handle" data-i="2"></i><i class="handle" data-i="3"></i></div></div></div>
+
+  <div id="panels" class="disabled">
+    <div class="panel" id="panel-ajustar">
+      <div class="sld"><label style="color:#ff8a8a">vermelho</label><input type="range" id="sl-r" min="0" max="200" value="100" /><span class="bubble"></span></div>
+      <div class="sld"><label style="color:#9dff9d">verde</label><input type="range" id="sl-g" min="0" max="200" value="100" /><span class="bubble"></span></div>
+      <div class="sld"><label style="color:#8ab4ff">azul</label><input type="range" id="sl-b" min="0" max="200" value="100" /><span class="bubble"></span></div>
+      <div class="p-hint">✓ aplica o ganho · ✕ zera os canais</div>
+    </div>
+
+    <div class="panel" id="panel-cortar">
+      <div class="prow">
+        <button id="btn-crop">recortar</button>
+        <button id="btn-persp" title="puxe os 4 cantos para dar perspectiva">perspectiva</button>
+      </div>
+      <div class="prow">
+        <label>L <input type="number" id="inp-w" min="1" /></label>
+        <label>A <input type="number" id="inp-h" min="1" /></label>
+        <button id="btn-resize">redimensionar</button>
+        <button id="btn-reset" title="descartar edições, volta ao original">redefinir</button>
+      </div>
+      <div class="p-hint">recortar/perspectiva: ✓ aplica, ✕ cancela</div>
+    </div>
+
+    <div class="panel" id="panel-girar">
+      <div class="prow">
+        <button id="btn-rot-ccw" title="girar 90° anti-horário">⟲90°</button>
+        <button id="btn-rot-cw" title="girar 90° horário">⟳90°</button>
+        <button id="btn-flip-x" title="espelho horizontal">↔</button>
+        <button id="btn-flip-y" title="espelho vertical">↕</button>
+      </div>
+      <div class="sld"><label>ângulo</label><input type="range" id="inp-angle" min="-180" max="180" step="1" value="0" /><span class="bubble"></span></div>
+      <div class="p-hint">arrastar o ângulo dá preview · ✓ confirma</div>
+    </div>
+
+    <div class="panel" id="panel-efeitos">
+      <div class="sld"><label>desfoque</label><input type="range" id="sl-blur" min="1" max="50" value="15" /><span class="bubble"></span></div>
+      <div class="sld"><label>nitidez</label><input type="range" id="sl-sharp" min="0" max="200" value="100" /><span class="bubble"></span></div>
+      <div class="prow">
+        <button id="btn-shape-square" class="shape on" title="retângulo com cantos arredondados">cantos</button>
+        <button id="btn-shape-oval" class="shape" title="elipse">oval</button>
+        <button id="btn-shape-circle" class="shape" title="círculo">círculo</button>
+      </div>
+      <div class="sld"><label>raio</label><input type="range" id="sl-radius" min="0" max="100" value="25" /><span class="bubble"></span></div>
+      <div class="p-hint">✓ aplica o último controle mexido</div>
+    </div>
+
+    <div class="panel" id="panel-salvar">
+      <div class="prow">
+        <button id="btn-export" disabled>PNG</button>
+        <button id="btn-export-jpg" disabled>JPEG</button>
+      </div>
+      <div class="sld"><label>qualidade</label><input type="range" id="sl-quality" min="50" max="100" value="85" /><span class="bubble"></span></div>
+    </div>
+  </div>
+
+  <nav id="dock" class="disabled">
+    <button data-panel="ajustar"><span class="g">☀</span>ajustar</button>
+    <button data-panel="cortar"><span class="g">⬚</span>cortar</button>
+    <button data-panel="girar"><span class="g">⟳</span>girar</button>
+    <button data-panel="efeitos"><span class="g">✦</span>efeitos</button>
+    <button data-panel="salvar"><span class="g">↓</span>salvar</button>
+  </nav>
+
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

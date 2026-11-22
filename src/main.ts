@@ -8,18 +8,18 @@ import { loadSession, saveSession, type Session } from "./ui/session";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const $input = (id: string) => $<HTMLInputElement>(id);
+const $btn = (id: string) => $<HTMLButtonElement>(id);
 
 const fileInput = $input("file");
 const inpAngle = $input("inp-angle");
-const lblAngle = $<HTMLSpanElement>("lbl-angle");
-lblAngle.textContent = inpAngle.value + "°";
-inpAngle.addEventListener("input", () => {
-  lblAngle.textContent = inpAngle.value + "°";
-});
 const inpW = $input("inp-w");
 const inpH = $input("inp-h");
 const status = $<HTMLSpanElement>("status");
-const tools = $<HTMLDivElement>("tools");
+const panelsEl = $<HTMLDivElement>("panels");
+const dockEl = $<HTMLElement>("dock");
+const fab = $<HTMLDivElement>("fab");
+const fabApply = $btn("fab-apply");
+const fabCancel = $btn("fab-cancel");
 const stage = $<HTMLDivElement>("stage");
 const sel = $<HTMLDivElement>("sel");
 const canvas = $<HTMLCanvasElement>("canvas");
@@ -43,7 +43,7 @@ let session: Session | null = null;
 let original: ImageBuf | null = null; // decodificada 1x; ops rodam sobre ela a cada render
 const history = new History(); // ops vivem no MESMO array da sessão (referência compartilhada)
 
-/** Op temporária dos sliders (preview ao vivo); só vira sessão no "aplicar". */
+/** Op temporária dos sliders (preview ao vivo); só vira sessão no ✓ do FAB. */
 let previewOp: Op | null = null;
 
 /* ---- perf (M6) ----
@@ -58,7 +58,7 @@ let proxyBase: ImageBuf | null = null;
 const PROXY_MAX_DIM = 900;
 let livePreview = false;
 // marcador de build p/ E2E: confirma que o browser roda o bundle esperado
-(window as unknown as { __okoBuild: string }).__okoBuild = "perf-proxy-1";
+(window as unknown as { __okoBuild: string }).__okoBuild = "m7-dock-1";
 
 function displayBuf(): ImageBuf | null {
   if (!original || !session) return null;
@@ -93,8 +93,9 @@ function render(label?: string): void {
   inpW.value = String(dims.width);
   inpH.value = String(dims.height);
   status.textContent = label ?? `${session.filename} — ${dims.width}×${dims.height} · ${history.ops.length} edição(ões)`;
-  $<HTMLButtonElement>("btn-undo").disabled = !history.canUndo;
-  $<HTMLButtonElement>("btn-redo").disabled = !history.canRedo;
+  $btn("btn-undo").disabled = !history.canUndo;
+  $btn("btn-redo").disabled = !history.canRedo;
+  updateFab();
 }
 
 /** valida a op rodando o pipeline completo ANTES de persistir (sessão nunca guarda op quebrada) */
@@ -114,11 +115,12 @@ async function addOp(op: Op): Promise<void> {
 }
 
 function setToolsEnabled(on: boolean): void {
-  tools.classList.toggle("disabled", !on);
-  $<HTMLButtonElement>("btn-export").disabled = !on;
-  $<HTMLButtonElement>("btn-export-jpg").disabled = !on;
-  $<HTMLButtonElement>("btn-undo").disabled = !on;
-  $<HTMLButtonElement>("btn-redo").disabled = !on;
+  panelsEl.classList.toggle("disabled", !on);
+  dockEl.classList.toggle("disabled", !on);
+  $btn("btn-export").disabled = !on;
+  $btn("btn-export-jpg").disabled = !on;
+  $btn("btn-undo").disabled = !on;
+  $btn("btn-redo").disabled = !on;
 }
 
 async function openImage(file: File): Promise<void> {
@@ -128,6 +130,7 @@ async function openImage(file: File): Promise<void> {
     session = { filename: file.name, savedAt: Date.now(), ops: [], image: file };
     history.load(session.ops);
     resetPreviewState();
+    setPanel(null);
     setToolsEnabled(true);
     render(`${file.name} — carregada`);
     await saveSession(session);
@@ -142,16 +145,16 @@ fileInput.addEventListener("change", async () => {
   if (file) await openImage(file);
   fileInput.value = "";
 });
-$<HTMLButtonElement>("btn-open").addEventListener("click", () => fileInput.click());
+$btn("btn-open").addEventListener("click", () => fileInput.click());
 
-$<HTMLButtonElement>("btn-export").addEventListener("click", async () => {
+$btn("btn-export").addEventListener("click", async () => {
   const buf = displayBuf();
   if (!buf) return;
   const blob = await bufToBlob(buf, "image/png");
   downloadBlob(blob, "oko-export.png");
 });
 
-$<HTMLButtonElement>("btn-export-jpg").addEventListener("click", async () => {
+$btn("btn-export-jpg").addEventListener("click", async () => {
   const buf = displayBuf();
   if (!buf) return;
   const quality = Number($input("sl-quality").value) / 100;
@@ -160,14 +163,14 @@ $<HTMLButtonElement>("btn-export-jpg").addEventListener("click", async () => {
 });
 
 // ---------- desfazer / refazer (M5) ----------
-$<HTMLButtonElement>("btn-undo").addEventListener("click", async () => {
+$btn("btn-undo").addEventListener("click", async () => {
   const op = history.undo();
   if (!op || !session) return;
   previewOp = null;
   await saveSession(session);
   render(`desfeito: ${op.type}`);
 });
-$<HTMLButtonElement>("btn-redo").addEventListener("click", async () => {
+$btn("btn-redo").addEventListener("click", async () => {
   const op = history.redo();
   if (!op || !session) return;
   previewOp = null;
@@ -175,21 +178,68 @@ $<HTMLButtonElement>("btn-redo").addEventListener("click", async () => {
   render(`refeito: ${op.type}`);
 });
 
-// ---------- toolbar M2 ----------
-$<HTMLButtonElement>("btn-flip-x").addEventListener("click", () => void addOp({ type: "flip", axis: "x" }));
-$<HTMLButtonElement>("btn-flip-y").addEventListener("click", () => void addOp({ type: "flip", axis: "y" }));
-$<HTMLButtonElement>("btn-rot-cw").addEventListener("click", () => void addOp({ type: "rotateZ", degrees: 90 }));
-$<HTMLButtonElement>("btn-rot-ccw").addEventListener("click", () => void addOp({ type: "rotateZ", degrees: -90 }));
-$<HTMLButtonElement>("btn-rot-free").addEventListener("click", () => {
-  const deg = Number.parseFloat(inpAngle.value);
-  if (Number.isFinite(deg)) void addOp({ type: "rotateZ", degrees: deg });
-});
-$<HTMLButtonElement>("btn-resize").addEventListener("click", () => {
+// ---------- M7: dock de 5 ícones + painéis contextuais ----------
+const panelEls: Record<string, HTMLElement> = {
+  ajustar: $("panel-ajustar"),
+  cortar: $("panel-cortar"),
+  girar: $("panel-girar"),
+  efeitos: $("panel-efeitos"),
+  salvar: $("panel-salvar"),
+};
+const dockBtns = Array.from(dockEl.querySelectorAll<HTMLButtonElement>("button"));
+let openPanel: string | null = null;
+
+function setPanel(name: string | null): void {
+  // tocar no ícone aberto fecha; tocar em outro troca
+  openPanel = openPanel === name ? null : name;
+  for (const [k, el] of Object.entries(panelEls)) el.classList.toggle("open", k === openPanel);
+  for (const b of dockBtns) b.classList.toggle("on", b.dataset["panel"] === openPanel);
+}
+for (const b of dockBtns) b.addEventListener("click", () => setPanel(b.dataset["panel"] ?? null));
+
+// ---------- M7: FAB ✓/✕ — único ponto de aplicar/cancelar ----------
+function updateFab(): void {
+  const active = Boolean(session) && (cropMode || perspMode || previewOp !== null);
+  fab.style.display = active ? "flex" : "none";
+  fabApply.disabled = cropMode && !selBox; // recorte ainda sem seleção: ✓ espera
+}
+
+/** ✓ aplica o que estiver pendente, na precedência: crop > perspectiva > preview */
+function applyPending(): void {
+  if (cropMode) return applyCrop();
+  if (perspMode) return applyPersp();
+  if (!previewOp) return;
+  const op = previewOp;
+  if (op.type === "colorGain") resetRGB();
+  if (op.type === "rotateZ") setAngle(0);
+  void addOp(op);
+}
+
+/** ✕ descarta a edição pendente (a op já aplicada NÃO é desfeita — use ↩) */
+function cancelPending(): void {
+  if (cropMode) return exitCrop();
+  if (perspMode) return exitPersp();
+  if (!previewOp) return;
+  if (previewOp.type === "colorGain") resetRGB();
+  if (previewOp.type === "rotateZ") setAngle(0);
+  previewOp = null;
+  livePreview = false;
+  render("edição cancelada");
+}
+fabApply.addEventListener("click", applyPending);
+fabCancel.addEventListener("click", cancelPending);
+
+// ---------- botões que aplicam direto (sem preview) ----------
+$btn("btn-flip-x").addEventListener("click", () => void addOp({ type: "flip", axis: "x" }));
+$btn("btn-flip-y").addEventListener("click", () => void addOp({ type: "flip", axis: "y" }));
+$btn("btn-rot-cw").addEventListener("click", () => void addOp({ type: "rotateZ", degrees: 90 }));
+$btn("btn-rot-ccw").addEventListener("click", () => void addOp({ type: "rotateZ", degrees: -90 }));
+$btn("btn-resize").addEventListener("click", () => {
   const w = Number.parseInt(inpW.value, 10);
   const h = Number.parseInt(inpH.value, 10);
   if (Number.isInteger(w) && Number.isInteger(h)) void addOp({ type: "resize", width: w, height: h });
 });
-$<HTMLButtonElement>("btn-reset").addEventListener("click", async () => {
+$btn("btn-reset").addEventListener("click", async () => {
   if (!session) return;
   previewOp = null;
   history.clear();
@@ -198,7 +248,35 @@ $<HTMLButtonElement>("btn-reset").addEventListener("click", async () => {
   render("edições descartadas");
 });
 
-// ---------- cor + borda com preview (M4) ----------
+// ---------- bolhas de valor + trilha preenchida nos sliders (M7) ----------
+interface BubbleSlider extends HTMLInputElement {
+  __syncBubble?: () => void;
+}
+function bindBubble(el: BubbleSlider, fmt: (v: number) => string): void {
+  const wrap = el.closest(".sld") as HTMLElement | null;
+  const bub = wrap?.querySelector<HTMLElement>(".bubble");
+  const sync = () => {
+    if (!wrap) return;
+    const min = Number(el.min);
+    const max = Number(el.max);
+    const p = ((Number(el.value) - min) / (max - min)) * 100;
+    wrap.style.setProperty("--fill", `${p}%`);
+    if (bub) {
+      // compensa meia-largura do thumb (34px) nas pontas
+      bub.style.left = `calc(${p}% + ${(0.5 - p / 100) * 34}px)`;
+      bub.textContent = fmt(Number(el.value));
+    }
+  };
+  sync();
+  el.addEventListener("input", () => {
+    wrap?.classList.add("live");
+    sync();
+  });
+  el.addEventListener("change", () => window.setTimeout(() => wrap?.classList.remove("live"), 400));
+  el["__syncBubble"] = sync; // p/ resets programáticos (✓/✕)
+}
+
+// ---------- cor com preview (M4) ----------
 const slR = $input("sl-r");
 const slG = $input("sl-g");
 const slB = $input("sl-b");
@@ -239,23 +317,35 @@ function colorPreview(): void {
   };
   previewRender();
 }
-for (const el of [slR, slG, slB]) bindLivePreview(el, colorPreview);
+for (const el of [slR, slG, slB]) {
+  bindBubble(el, (v) => `${v}%`);
+  bindLivePreview(el, colorPreview);
+}
 
-$<HTMLButtonElement>("btn-color").addEventListener("click", () => {
-  const op: Op = {
-    type: "colorGain",
-    r: Number(slR.value) / 100,
-    g: Number(slG.value) / 100,
-    b: Number(slB.value) / 100,
-  };
+function resetRGB(): void {
   slR.value = slG.value = slB.value = "100";
-  void addOp(op);
+  for (const el of [slR, slG, slB]) (el as BubbleSlider).__syncBubble?.();
+  previewOp = null;
+  previewRender();
+}
+
+// ---------- ângulo com preview (M7: rotação entra no modelo slider→✓) ----------
+function setAngle(deg: number): void {
+  inpAngle.value = String(deg);
+  (inpAngle as BubbleSlider).__syncBubble?.();
+}
+bindBubble(inpAngle, (v) => `${v}°`);
+bindLivePreview(inpAngle, () => {
+  const deg = Number.parseFloat(inpAngle.value);
+  previewOp = Number.isFinite(deg) && deg !== 0 ? { type: "rotateZ", degrees: deg } : null;
+  previewRender();
 });
 
+// ---------- borda com preview (M4) ----------
 const shapeBtns: Record<string, HTMLButtonElement> = {
-  square: $<HTMLButtonElement>("btn-shape-square"),
-  oval: $<HTMLButtonElement>("btn-shape-oval"),
-  circle: $<HTMLButtonElement>("btn-shape-circle"),
+  square: $btn("btn-shape-square"),
+  oval: $btn("btn-shape-oval"),
+  circle: $btn("btn-shape-circle"),
 };
 let shapeSel: "square" | "oval" | "circle" = "square";
 
@@ -278,32 +368,27 @@ for (const [shape, btn] of Object.entries(shapeBtns)) {
     borderPreview();
   });
 }
+bindBubble(slRadius, (v) => `${v}%`);
 bindLivePreview(slRadius, borderPreview);
-
-$<HTMLButtonElement>("btn-border").addEventListener("click", () => {
-  const op: Op = { type: "border", shape: shapeSel, radius: shapeSel === "square" ? radiusPx() : 0 };
-  void addOp(op);
-});
 
 // ---------- desfoque / nitidez com preview (M6) ----------
 const slBlur = $input("sl-blur");
 const slSharp = $input("sl-sharp");
 
+bindBubble(slBlur, (v) => `σ ${(v / 10).toFixed(1)}`);
 bindLivePreview(slBlur, () => {
   previewOp = { type: "blur", sigma: Number(slBlur.value) / 10 };
   previewRender();
 });
-$<HTMLButtonElement>("btn-blur").addEventListener("click", () => {
-  void addOp({ type: "blur", sigma: Number(slBlur.value) / 10 });
-});
 
+bindBubble(slSharp, (v) => `${v}%`);
 bindLivePreview(slSharp, () => {
   previewOp = { type: "sharpen", amount: Number(slSharp.value) / 100, sigma: 1 };
   previewRender();
 });
-$<HTMLButtonElement>("btn-sharp").addEventListener("click", () => {
-  void addOp({ type: "sharpen", amount: Number(slSharp.value) / 100, sigma: 1 });
-});
+
+// qualidade não é preview de imagem — só bolha
+bindBubble($input("sl-quality") as BubbleSlider, (v) => `${v}`);
 
 // ---------- crop interativo ----------
 let cropMode = false;
@@ -311,31 +396,22 @@ let dragStart: { x: number; y: number } | null = null;
 let dragCur: { x: number; y: number } | null = null;
 let selBox: { x0: number; y0: number; x1: number; y1: number } | null = null;
 
-const btnCrop = $<HTMLButtonElement>("btn-crop");
-const btnCropApply = $<HTMLButtonElement>("btn-crop-apply");
-const btnCropCancel = $<HTMLButtonElement>("btn-crop-cancel");
+const btnCrop = $btn("btn-crop");
 
 function exitCrop(): void {
   cropMode = false;
   dragStart = selBox = null;
   stage.classList.remove("cropping");
   sel.style.display = "none";
-  btnCrop.style.display = "";
-  btnCropApply.style.display = "none";
-  btnCropCancel.style.display = "none";
+  updateFab();
 }
 
 btnCrop.addEventListener("click", () => {
   cropMode = !cropMode;
   stage.classList.toggle("cropping", cropMode);
-  if (cropMode) {
-    btnCropApply.style.display = "";
-    btnCropCancel.style.display = "";
-  } else {
-    exitCrop();
-  }
+  if (!cropMode) exitCrop();
+  else updateFab();
 });
-btnCropCancel.addEventListener("click", exitCrop);
 
 canvas.addEventListener("pointerdown", (e) => {
   if (!cropMode) return;
@@ -367,13 +443,13 @@ canvas.addEventListener("pointerup", () => {
   const w = selBox.x1 - selBox.x0;
   const h = selBox.y1 - selBox.y0;
   if (w < 4 || h < 4) {
-    exitCrop(); // clique sem arrasto descarta a seleção
-    return;
+    selBox = null; // clique sem arrasto apenas limpa a seleção
+    sel.style.display = "none";
   }
-  btnCropApply.focus();
+  updateFab();
 });
 
-btnCropApply.addEventListener("click", () => {
+function applyCrop(): void {
   const buf = displayBuf();
   if (!buf || !selBox) return;
   const r = canvas.getBoundingClientRect();
@@ -385,7 +461,7 @@ btnCropApply.addEventListener("click", () => {
   const h = Math.min(buf.height - y, Math.ceil((selBox.y1 - selBox.y0) * sy));
   exitCrop();
   if (w >= 1 && h >= 1) void addOp({ type: "crop", x, y, width: w, height: h });
-});
+}
 
 // ---------- perspectiva interativa (M3) ----------
 const KEYS = ["tl", "tr", "bl", "br"] as const;
@@ -393,9 +469,7 @@ const handlesWrap = $<HTMLDivElement>("handles");
 const quadSvg = document.getElementById("quadsvg") as unknown as SVGSVGElement;
 const quadPoly = quadSvg.querySelector("polygon")!;
 const handleEls = Array.from(handlesWrap.querySelectorAll<HTMLElement>(".handle"));
-const btnPersp = $<HTMLButtonElement>("btn-persp");
-const btnPerspApply = $<HTMLButtonElement>("btn-persp-apply");
-const btnPerspCancel = $<HTMLButtonElement>("btn-persp-cancel");
+const btnPersp = $btn("btn-persp");
 
 let perspMode = false;
 let quad: Record<(typeof KEYS)[number], [number, number]> | null = null;
@@ -427,9 +501,7 @@ function enterPersp(): void {
   quad = { tl: [0, 0], tr: [buf.width, 0], bl: [0, buf.height], br: [buf.width, buf.height] };
   handlesWrap.style.display = "block";
   quadSvg.style.display = "block";
-  btnPersp.style.display = "none";
-  btnPerspApply.style.display = "";
-  btnPerspCancel.style.display = "";
+  updateFab();
   drawQuad();
 }
 
@@ -439,19 +511,17 @@ function exitPersp(): void {
   dragKey = null;
   handlesWrap.style.display = "none";
   quadSvg.style.display = "none";
-  btnPersp.style.display = "";
-  btnPerspApply.style.display = "none";
-  btnPerspCancel.style.display = "none";
+  updateFab();
 }
 
 btnPersp.addEventListener("click", () => (perspMode ? exitPersp() : enterPersp()));
-btnPerspCancel.addEventListener("click", exitPersp);
-btnPerspApply.addEventListener("click", () => {
+
+function applyPersp(): void {
   if (!quad) return;
   const q = structuredClone(quad);
   exitPersp();
   void addOp({ type: "perspective", quad: q });
-});
+}
 
 for (const el of handleEls) {
   const key = KEYS[Number(el.dataset["i"])]!;
