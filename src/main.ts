@@ -22,7 +22,21 @@ const tools = $<HTMLDivElement>("tools");
 const stage = $<HTMLDivElement>("stage");
 const sel = $<HTMLDivElement>("sel");
 const canvas = $<HTMLCanvasElement>("canvas");
-const view = new CanvasView(canvas);
+const view = new CanvasView(canvas, stage);
+
+// girar o telefone / redimensionar a janela: recomputar encaixe e overlays
+window.addEventListener("resize", () => {
+  view.fit();
+  if (cropMode && selBox) {
+    const r = canvas.getBoundingClientRect();
+    const s = r.width / (displayBuf()?.width ?? 1);
+    sel.style.left = `${Math.min(selBox.x0, selBox.x1) * s}px`;
+    sel.style.top = `${Math.min(selBox.y0, selBox.y1) * s}px`;
+    sel.style.width = `${Math.abs(selBox.x1 - selBox.x0) * s}px`;
+    sel.style.height = `${Math.abs(selBox.y1 - selBox.y0) * s}px`;
+  }
+  if (perspMode) drawQuad();
+});
 
 let session: Session | null = null;
 let original: ImageBuf | null = null; // decodificada 1x; ops rodam sobre ela a cada render

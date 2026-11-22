@@ -20,7 +20,7 @@
     button:hover:not(:disabled) { background: #4a4a56; }
     #stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
     #wrap { position: relative; line-height: 0; }
-    #wrap canvas { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 24px rgba(0,0,0,.5); background: #000; touch-action: none; user-select: none; -webkit-user-select: none; }
+    #wrap canvas { box-shadow: 0 4px 24px rgba(0,0,0,.5); background: #000; touch-action: none; user-select: none; -webkit-user-select: none; display: block; }
     #sel { position: absolute; border: 1px dashed #7db2ff; background: rgba(125,178,255,.18); display: none; pointer-events: none; }
     #quadsvg { position: absolute; inset: 0; pointer-events: none; display: none; overflow: visible; }
     #handles { display: none; }
