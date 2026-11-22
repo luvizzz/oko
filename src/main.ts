@@ -231,6 +231,26 @@ $<HTMLButtonElement>("btn-border").addEventListener("click", () => {
   void addOp(op);
 });
 
+// ---------- desfoque / nitidez com preview (M6) ----------
+const slBlur = $input("sl-blur");
+const slSharp = $input("sl-sharp");
+
+slBlur.addEventListener("input", () => {
+  previewOp = { type: "blur", sigma: Number(slBlur.value) / 10 };
+  previewRender();
+});
+$<HTMLButtonElement>("btn-blur").addEventListener("click", () => {
+  void addOp({ type: "blur", sigma: Number(slBlur.value) / 10 });
+});
+
+slSharp.addEventListener("input", () => {
+  previewOp = { type: "sharpen", amount: Number(slSharp.value) / 100, sigma: 1 };
+  previewRender();
+});
+$<HTMLButtonElement>("btn-sharp").addEventListener("click", () => {
+  void addOp({ type: "sharpen", amount: Number(slSharp.value) / 100, sigma: 1 });
+});
+
 // ---------- crop interativo ----------
 let cropMode = false;
 let dragStart: { x: number; y: number } | null = null;

@@ -86,6 +86,11 @@
     <label class="ch">raio<input type="range" id="sl-radius" min="0" max="100" value="25"></label>
     <button id="btn-border">aplicar borda</button>
     <span class="sep"></span>
+    <label class="ch">desfoque<input type="range" id="sl-blur" min="1" max="50" value="15"></label>
+    <button id="btn-blur" title="borrão gaussiano">desfoque</button>
+    <label class="ch">nitidez<input type="range" id="sl-sharp" min="0" max="200" value="100"></label>
+    <button id="btn-sharp" title="unsharp mask">nitidez</button>
+    <span class="sep"></span>
     <button id="btn-reset" title="descartar edições, volta ao original">redefinir</button>
   </div>
   <div id="stage"><div id="wrap"><canvas id="canvas" width="0" height="0"></canvas><div id="sel"></div><svg id="quadsvg"><polygon points="" fill="rgba(125,178,255,.12)" stroke="#7db2ff" stroke-width="1.5" stroke-dasharray="4 3"/></svg><div id="handles"><i class="handle" data-i="0"></i><i class="handle" data-i="1"></i><i class="handle" data-i="2"></i><i class="handle" data-i="3"></i></div></div></div>

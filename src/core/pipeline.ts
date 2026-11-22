@@ -12,6 +12,7 @@ import { lanczosResize } from "./resize";
 import { perspective, type Quad } from "./perspective";
 import { colorGain } from "./color";
 import { border, type BorderShape } from "./border";
+import { gaussianBlur, sharpen } from "./filter";
 
 export type Op =
   | { type: "resize"; width: number; height: number } // M2 ✅
@@ -21,6 +22,8 @@ export type Op =
   | { type: "perspective"; quad: Quad } // M3 ✅
   | { type: "colorGain"; r: number; g: number; b: number } // M4 ✅
   | { type: "border"; shape: BorderShape; radius: number } // M4 ✅
+  | { type: "blur"; sigma: number } // M6 ✅
+  | { type: "sharpen"; amount: number; sigma: number } // M6 ✅
   | { type: "__none__" };
 
 export function runPipeline(img: ImageBuf, ops: readonly Op[]): ImageBuf {
@@ -49,6 +52,12 @@ export function runPipeline(img: ImageBuf, ops: readonly Op[]): ImageBuf {
         break;
       case "border":
         out = border(out, op.shape, op.radius);
+        break;
+      case "blur":
+        out = gaussianBlur(out, op.sigma);
+        break;
+      case "sharpen":
+        out = sharpen(out, op.amount, op.sigma);
         break;
       default: {
         const t: never = op; // exaustividade: TS quebra quando novo Op entra sem case
