@@ -5,7 +5,7 @@
  * + bilinear — que é a exceção autorizada em D5 para warp geométrico.
  * Fora dos limites da origem → transparente (0,0,0,0).
  */
-import { alloc, type ImageBuf } from "./image";
+import { alloc, trimTransparent, type ImageBuf } from "./image";
 
 export function rotateZ(img: ImageBuf, degrees: number): ImageBuf {
   if (!Number.isFinite(degrees)) throw new RangeError(`ângulo inválido: ${degrees}`);
@@ -101,34 +101,4 @@ function rotateArbitrary(img: ImageBuf, theta: number): ImageBuf {
     }
   }
   return trimTransparent(out);
-}
-
-/**
- * Corta linhas/colunas 100% transparentes da borda. Sem isso, rotações cuja soma
- * volta a 0° deixam o conteúdo "flutuando" num canvas que cresceu passo a passo.
- */
-function trimTransparent(img: ImageBuf): ImageBuf {
-  const { width: w, height: h, data } = img;
-  let x0 = w, x1 = -1, y0 = h, y1 = -1;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if ((data[(y * w + x) * 4 + 3] ?? 0) > 0) {
-        if (x < x0) x0 = x;
-        if (x > x1) x1 = x;
-        if (y < y0) y0 = y;
-        if (y > y1) y1 = y;
-      }
-    }
-  }
-  if (x1 < 0) return img; // tudo transparente: nunca fazemos a imagem sumir
-  if (x0 === 0 && y0 === 0 && x1 === w - 1 && y1 === h - 1) return img; // já justo
-  const nw = x1 - x0 + 1;
-  const nh = y1 - y0 + 1;
-  const out = alloc(nw, nh);
-  const rowBytes = nw * 4;
-  for (let r = 0; r < nh; r++) {
-    const srcStart = ((y0 + r) * w + x0) * 4;
-    out.data.set(data.subarray(srcStart, srcStart + rowBytes), r * rowBytes);
-  }
-  return out;
 }

@@ -22,6 +22,10 @@
     #wrap { position: relative; line-height: 0; }
     #wrap canvas { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 24px rgba(0,0,0,.5); background: #000; touch-action: none; user-select: none; -webkit-user-select: none; }
     #sel { position: absolute; border: 1px dashed #7db2ff; background: rgba(125,178,255,.18); display: none; pointer-events: none; }
+    #quadsvg { position: absolute; inset: 0; pointer-events: none; display: none; overflow: visible; }
+    #handles { display: none; }
+    .handle { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #7db2ff; border: 2px solid #fff; transform: translate(-50%, -50%); cursor: grab; touch-action: none; box-shadow: 0 1px 6px rgba(0,0,0,.6); }
+    .handle:active { cursor: grabbing; background: #fff; }
     #stage.cropping canvas { cursor: crosshair; }
     #status { font-size: 12px; color: #9a9aa4; }
     #tools { display: flex; align-items: center; gap: 8px; padding: 8px calc(16px + env(safe-area-inset-right)) 8px calc(16px + env(safe-area-inset-left)); background: #1e1e23; border-bottom: 1px solid #333; flex-wrap: wrap; }
@@ -58,9 +62,13 @@
     <button id="btn-crop-apply" style="display:none">aplicar</button>
     <button id="btn-crop-cancel" style="display:none">cancelar</button>
     <span class="sep"></span>
+    <button id="btn-persp" title="puxe os 4 cantos para dar perspectiva">perspectiva</button>
+    <button id="btn-persp-apply" style="display:none">aplicar</button>
+    <button id="btn-persp-cancel" style="display:none">cancelar</button>
+    <span class="sep"></span>
     <button id="btn-reset" title="descartar edições, volta ao original">redefinir</button>
   </div>
-  <div id="stage"><div id="wrap"><canvas id="canvas" width="0" height="0"></canvas><div id="sel"></div></div></div>
+  <div id="stage"><div id="wrap"><canvas id="canvas" width="0" height="0"></canvas><div id="sel"></div><svg id="quadsvg"><polygon points="" fill="rgba(125,178,255,.12)" stroke="#7db2ff" stroke-width="1.5" stroke-dasharray="4 3"/></svg><div id="handles"><i class="handle" data-i="0"></i><i class="handle" data-i="1"></i><i class="handle" data-i="2"></i><i class="handle" data-i="3"></i></div></div></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

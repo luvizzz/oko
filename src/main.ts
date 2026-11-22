@@ -190,6 +190,96 @@ btnCropApply.addEventListener("click", () => {
   if (w >= 1 && h >= 1) void addOp({ type: "crop", x, y, width: w, height: h });
 });
 
+// ---------- perspectiva interativa (M3) ----------
+const KEYS = ["tl", "tr", "bl", "br"] as const;
+const handlesWrap = $<HTMLDivElement>("handles");
+const quadSvg = document.getElementById("quadsvg") as unknown as SVGSVGElement;
+const quadPoly = quadSvg.querySelector("polygon")!;
+const handleEls = Array.from(handlesWrap.querySelectorAll<HTMLElement>(".handle"));
+const btnPersp = $<HTMLButtonElement>("btn-persp");
+const btnPerspApply = $<HTMLButtonElement>("btn-persp-apply");
+const btnPerspCancel = $<HTMLButtonElement>("btn-persp-cancel");
+
+let perspMode = false;
+let quad: Record<(typeof KEYS)[number], [number, number]> | null = null;
+let dragKey: (typeof KEYS)[number] | null = null;
+
+function canvasScale(): number {
+  const buf = displayBuf();
+  if (!buf) return 1;
+  return canvas.getBoundingClientRect().width / buf.width;
+}
+
+function drawQuad(): void {
+  if (!quad) return;
+  const s = canvasScale();
+  const disp = KEYS.map((k) => [quad![k][0] * s, quad![k][1] * s] as const);
+  quadPoly.setAttribute("points", disp.map((p) => p.join(",")).join(" "));
+  disp.forEach(([x, y], i) => {
+    const el = handleEls[i]!;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+  });
+}
+
+function enterPersp(): void {
+  const buf = displayBuf();
+  if (!buf) return;
+  exitCrop();
+  perspMode = true;
+  quad = { tl: [0, 0], tr: [buf.width, 0], bl: [0, buf.height], br: [buf.width, buf.height] };
+  handlesWrap.style.display = "block";
+  quadSvg.style.display = "block";
+  btnPersp.style.display = "none";
+  btnPerspApply.style.display = "";
+  btnPerspCancel.style.display = "";
+  drawQuad();
+}
+
+function exitPersp(): void {
+  perspMode = false;
+  quad = null;
+  dragKey = null;
+  handlesWrap.style.display = "none";
+  quadSvg.style.display = "none";
+  btnPersp.style.display = "";
+  btnPerspApply.style.display = "none";
+  btnPerspCancel.style.display = "none";
+}
+
+btnPersp.addEventListener("click", () => (perspMode ? exitPersp() : enterPersp()));
+btnPerspCancel.addEventListener("click", exitPersp);
+btnPerspApply.addEventListener("click", () => {
+  if (!quad) return;
+  const q = structuredClone(quad);
+  exitPersp();
+  void addOp({ type: "perspective", quad: q });
+});
+
+for (const el of handleEls) {
+  const key = KEYS[Number(el.dataset["i"])]!;
+  el.addEventListener("pointerdown", (e) => {
+    dragKey = key;
+    el.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (dragKey !== key || !quad) return;
+    const r = canvas.getBoundingClientRect();
+    const s = canvasScale();
+    const buf = displayBuf();
+    if (!buf) return;
+    // permite puxar um pouco para fora (até 25%) — o trim cuida do resto
+    const x = Math.max(-0.25 * buf.width, Math.min(1.25 * buf.width, (e.clientX - r.left) / s));
+    const y = Math.max(-0.25 * buf.height, Math.min(1.25 * buf.height, (e.clientY - r.top) / s));
+    quad[key] = [x, y];
+    drawQuad();
+  });
+  el.addEventListener("pointerup", () => (dragKey = null));
+  el.addEventListener("pointercancel", () => (dragKey = null));
+}
+
 // ---------- restore ----------
 loadSession()
   .then(async (saved) => {

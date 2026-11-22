@@ -35,6 +35,36 @@ export function fill(img: ImageBuf, r: number, g: number, b: number, a = 255): v
   }
 }
 
+/**
+ * Corta linhas/colunas 100% transparentes da borda (rotate e perspective usam:
+ * o conteúdo tem que encostar no canvas, nunca "flutuar" em margem transparente).
+ */
+export function trimTransparent(img: ImageBuf): ImageBuf {
+  const { width: w, height: h, data } = img;
+  let x0 = w, x1 = -1, y0 = h, y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if ((data[(y * w + x) * 4 + 3] ?? 0) > 0) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return img; // tudo transparente: nunca fazemos a imagem sumir
+  if (x0 === 0 && y0 === 0 && x1 === w - 1 && y1 === h - 1) return img; // já justo
+  const nw = x1 - x0 + 1;
+  const nh = y1 - y0 + 1;
+  const out = alloc(nw, nh);
+  const rowBytes = nw * 4;
+  for (let r = 0; r < nh; r++) {
+    const srcStart = ((y0 + r) * w + x0) * 4;
+    out.data.set(data.subarray(srcStart, srcStart + rowBytes), r * rowBytes);
+  }
+  return out;
+}
+
 export function getPixel(img: ImageBuf, x: number, y: number): [number, number, number, number] {
   checkBounds(img, x, y);
   const i = (y * img.width + x) * 4;

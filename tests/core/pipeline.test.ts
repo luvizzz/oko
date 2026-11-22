@@ -13,10 +13,10 @@ describe("core/pipeline", () => {
     expect(runPipeline(img, [{ type: "__none__" }])).toBe(img);
   });
 
-  it("op ainda não implementada (M3/M4) falha explicitamente (nunca silencia)", () => {
+  it("op ainda não implementada (M4) falha explicitamente (nunca silencia)", () => {
     const img = alloc(2, 2);
-    expect(() => runPipeline(img, [{ type: "perspective", corners: [0, 0, 1, 1] }])).toThrow(
-      "operação 'perspective' ainda não implementada",
+    expect(() => runPipeline(img, [{ type: "colorGain", r: 1, g: 1, b: 1 }])).toThrow(
+      "operação 'colorGain' ainda não implementada",
     );
   });
 

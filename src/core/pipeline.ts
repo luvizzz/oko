@@ -9,13 +9,14 @@ import { flip } from "./flip";
 import { crop } from "./crop";
 import { rotateZ } from "./rotate";
 import { lanczosResize } from "./resize";
+import { perspective, type Quad } from "./perspective";
 
 export type Op =
   | { type: "resize"; width: number; height: number } // M2 ✅
   | { type: "crop"; x: number; y: number; width: number; height: number } // M2 ✅
   | { type: "rotateZ"; degrees: number } // M2 ✅
   | { type: "flip"; axis: "x" | "y" } // M2 ✅
-  | { type: "perspective"; corners: readonly [number, number, number, number] } // M3
+  | { type: "perspective"; quad: Quad } // M3 ✅
   | { type: "colorGain"; r: number; g: number; b: number } // M4
   | { type: "border"; shape: "square" | "oval" | "circle"; radius: number } // M4
   | { type: "__none__" };
@@ -39,6 +40,8 @@ export function runPipeline(img: ImageBuf, ops: readonly Op[]): ImageBuf {
         out = lanczosResize(out, op.width, op.height);
         break;
       case "perspective":
+        out = perspective(out, op.quad);
+        break;
       case "colorGain":
       case "border":
         throw new Error(`operação '${op.type}' ainda não implementada`);
